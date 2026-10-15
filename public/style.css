@@ -1,0 +1,29 @@
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding-top: 100px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  width: 250px;
+  gap: 10px;
+}
+
+#error {
+  color: red;
+  font-size: 14px;
+  min-height: 18px;
+}
+
+button {
+  padding: 8px;
+  cursor: pointer;
+}
+
+a {
+  font-size: 14px;
+  text-align: center;
+}
