@@ -1,29 +1,228 @@
+:root {
+  --main: #2563eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Arial, sans-serif;
+  margin: 0;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding-top: 100px;
+  align-items: center;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #f5f6f8;
+  color: #1a1a1a;
 }
 
 form {
   display: flex;
   flex-direction: column;
-  width: 250px;
-  gap: 10px;
+  gap: 16px;
+  width: 100%;
+  max-width: 340px;
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+form.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-name {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--main);
+}
+
+h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: inherit;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  outline: none;
+  background: #fafafa;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+input:focus {
+  border-color: var(--main);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--main);
+  outline-offset: 2px;
+}
+
+.password-row {
+  display: flex;
+  gap: 8px;
+}
+
+.password-row input {
+  flex: 1;
+}
+
+#toggleBtn {
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--main);
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+
+#toggleBtn:hover {
+  border-color: var(--main);
+  background: #f5f8ff;
 }
 
 #error {
-  color: red;
-  font-size: 14px;
   min-height: 18px;
+  margin: 0;
+  font-size: 13px;
+  color: #d33;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-button {
-  padding: 8px;
+#error.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#error.shake {
+  animation: shake 0.35s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+#loginBtn {
+  position: relative;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--main);
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
+  overflow: hidden;
+  transition: background 0.25s ease, transform 0.15s ease;
+}
+
+#loginBtn:hover {
+  background: #1d4ed8;
+}
+
+#loginBtn:active {
+  transform: scale(0.98);
+}
+
+#loginBtn:disabled {
+  background: #999;
+  cursor: default;
+}
+
+#loginBtn.success {
+  background: #2e9e5b;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(0);
+  animation: ripple 0.6s ease-out;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(3);
+    opacity: 0;
+  }
 }
 
 a {
-  font-size: 14px;
+  font-size: 13px;
   text-align: center;
+  color: var(--main);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#createBtn {
+  display: block;
+  padding: 11px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: var(--main);
+  transition: border-color 0.25s ease, background 0.25s ease, transform 0.15s ease;
+}
+
+#createBtn:hover {
+  border-color: var(--main);
+  background: #f5f8ff;
+  text-decoration: none;
+}
+
+#createBtn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 400px) {
+  form {
+    padding: 24px;
+  }
 }

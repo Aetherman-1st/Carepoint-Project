@@ -1,16 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login</title>
+  <title>My App - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <form id="loginForm">
+    <p class="app-name">My App</p>
     <h2>Login</h2>
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="Email" autocomplete="email" autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="password-row">
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        <button type="button" id="toggleBtn">Show</button>
+      </div>
+    </div>
     <p id="error"></p>
     <button type="submit" id="loginBtn">Log in</button>
+    <a href="/signup.html" id="createBtn">Create account</a>
     <a href="#">Forgot password?</a>
   </form>
   <script src="script.js"></script>
