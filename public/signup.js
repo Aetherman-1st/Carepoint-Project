@@ -7,6 +7,22 @@ const confirmInput = document.getElementById('confirm');
 const error = document.getElementById('error');
 const btn = document.getElementById('signupBtn');
 
+const verifyForm = document.getElementById('signupVerifyForm');
+const codeInput = document.getElementById('signupCode');
+const codeSent = document.getElementById('signupCodeSent');
+const codeError = document.getElementById('signupCodeError');
+const codeStatus = document.getElementById('signupCodeStatus');
+const devCodeNote = document.getElementById('signupDevCode');
+const verifyBtn = document.getElementById('verifySignupBtn');
+const resendBtn = document.getElementById('resendSignupBtn');
+const backBtn = document.getElementById('backToSignupBtn');
+const authTitle = document.getElementById('authTitle');
+const authSubtitle = document.getElementById('authSubtitle');
+const authAlt = document.getElementById('authAlt');
+
+let challenge = null;
+let resendInterval = null;
+
 function showError(message) {
   error.textContent = message;
   error.classList.add('show', 'shake');
@@ -18,29 +34,108 @@ function clearError() {
   error.textContent = '';
 }
 
+function showCodeError(message) {
+  codeError.textContent = message;
+  codeError.classList.add('show', 'shake');
+  setTimeout(() => codeError.classList.remove('shake'), 350);
+}
+
+function clearCodeMessages() {
+  codeError.classList.remove('show');
+  codeError.textContent = '';
+  codeStatus.textContent = '';
+  codeStatus.className = 'form-status';
+}
+
+function renderDevCode(code) {
+  if (code) {
+    devCodeNote.classList.remove('hidden');
+    devCodeNote.textContent = `Development mode: your verification code is ${code}. Add SMTP details in .env to send real emails.`;
+  } else {
+    devCodeNote.classList.add('hidden');
+    devCodeNote.textContent = '';
+  }
+}
+
+function startResendCooldown(seconds) {
+  if (resendInterval) clearInterval(resendInterval);
+
+  let remaining = Math.max(0, Math.ceil(seconds));
+  resendBtn.disabled = true;
+  resendBtn.textContent = `Resend code (${remaining}s)`;
+
+  resendInterval = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(resendInterval);
+      resendInterval = null;
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Resend code';
+      return;
+    }
+    resendBtn.textContent = `Resend code (${remaining}s)`;
+  }, 1000);
+}
+
+function showVerifyStep(data) {
+  challenge = data.challenge;
+  codeSent.textContent = data.emailDelivered
+    ? `A 6-digit code was sent to ${data.email}.`
+    : `Email delivery is not configured. Use the development code below for ${data.email}.`;
+  codeInput.value = '';
+  clearCodeMessages();
+  renderDevCode(data.devCode);
+
+  form.classList.add('hidden');
+  verifyForm.classList.remove('hidden');
+  authAlt.classList.add('hidden');
+  authTitle.textContent = data.emailDelivered ? 'Check your email' : 'Enter your code';
+  authSubtitle.textContent = data.emailDelivered
+    ? 'Enter the 6-digit code to verify your new account.'
+    : 'Use the development code below to verify your account.';
+  startResendCooldown(60);
+  codeInput.focus();
+}
+
+function showSignupStep() {
+  challenge = null;
+  if (resendInterval) {
+    clearInterval(resendInterval);
+    resendInterval = null;
+  }
+  resendBtn.disabled = false;
+  resendBtn.textContent = 'Resend code';
+  clearCodeMessages();
+  renderDevCode(null);
+
+  verifyForm.classList.add('hidden');
+  form.classList.remove('hidden');
+  authAlt.classList.remove('hidden');
+  authTitle.textContent = 'Create account';
+  authSubtitle.textContent = 'Use your name, email and password.';
+  clearError();
+}
+
 window.addEventListener('load', () => {
   form.classList.add('show');
 });
 
-btn.addEventListener('click', (e) => {
-  const ripple = document.createElement('span');
-  ripple.classList.add('ripple');
-  const size = Math.max(btn.clientWidth, btn.clientHeight);
-  ripple.style.width = size + 'px';
-  ripple.style.height = size + 'px';
-  ripple.style.left = (e.offsetX - size / 2) + 'px';
-  ripple.style.top = (e.offsetY - size / 2) + 'px';
-  btn.appendChild(ripple);
-  setTimeout(() => ripple.remove(), 600);
+[firstnameInput, lastnameInput, emailInput, passwordInput, confirmInput].forEach((input) => {
+  input.addEventListener('input', clearError);
+});
+
+codeInput.addEventListener('input', () => {
+  codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+  clearCodeMessages();
 });
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearError();
 
-  const first_name = firstnameInput.value;
-  const last_name = lastnameInput.value;
-  const email = emailInput.value;
+  const first_name = firstnameInput.value.trim();
+  const last_name = lastnameInput.value.trim();
+  const email = emailInput.value.trim();
   const password = passwordInput.value;
   const confirm = confirmInput.value;
 
@@ -59,8 +154,9 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
-  btn.textContent = 'Creating...';
+  btn.textContent = 'Creating account...';
   btn.disabled = true;
+  btn.classList.add('is-loading');
 
   try {
     const response = await fetch('/signup', {
@@ -75,17 +171,113 @@ form.addEventListener('submit', async (e) => {
       showError(data.message);
       btn.textContent = 'Create account';
       btn.disabled = false;
+      btn.classList.remove('is-loading');
+      return;
+    }
+
+    btn.classList.remove('is-loading');
+    if (data.verificationRequired) {
+      showVerifyStep(data);
+      btn.textContent = 'Create account';
+      btn.disabled = false;
       return;
     }
 
     btn.classList.add('success');
-    btn.textContent = 'Account created!';
+    btn.textContent = 'Account created';
     setTimeout(() => {
-      window.location.href = '/index.html';
-    }, 1200);
+      window.location.href = data.redirect || '/login';
+    }, 700);
   } catch (err) {
     showError('Something went wrong');
     btn.textContent = 'Create account';
     btn.disabled = false;
+    btn.classList.remove('is-loading');
   }
 });
+
+verifyForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearCodeMessages();
+
+  const code = codeInput.value.trim();
+
+  if (!/^\d{6}$/.test(code)) {
+    showCodeError('Enter the 6-digit code from your email.');
+    return;
+  }
+
+  verifyBtn.disabled = true;
+  verifyBtn.textContent = 'Verifying...';
+  verifyBtn.classList.add('is-loading');
+
+  try {
+    const response = await fetch('/signup/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge, code })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showCodeError(data.message || 'Could not verify the code.');
+      verifyBtn.disabled = false;
+      verifyBtn.classList.remove('is-loading');
+      verifyBtn.textContent = 'Verify email';
+      codeInput.focus();
+      return;
+    }
+
+    verifyBtn.classList.remove('is-loading');
+    verifyBtn.classList.add('success');
+    verifyBtn.textContent = 'Verified';
+    setTimeout(() => {
+      window.location.href = data.redirect || '/patient?onboarding=1';
+    }, 650);
+  } catch (err) {
+    showCodeError('Something went wrong');
+    verifyBtn.disabled = false;
+    verifyBtn.classList.remove('is-loading');
+    verifyBtn.textContent = 'Verify email';
+  }
+});
+
+resendBtn.addEventListener('click', async () => {
+  if (!challenge) return;
+  clearCodeMessages();
+
+  resendBtn.disabled = true;
+  resendBtn.textContent = 'Sending...';
+
+  try {
+    const response = await fetch('/signup/resend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showCodeError(data.message || 'Could not resend the code.');
+      startResendCooldown(data.retryAfter || 30);
+      return;
+    }
+
+    challenge = data.challenge;
+    renderDevCode(data.devCode);
+    codeStatus.textContent = data.emailDelivered
+      ? 'A new code was sent.'
+      : 'A new development code was created.';
+    codeStatus.className = 'form-status ok';
+    codeInput.value = '';
+    codeInput.focus();
+    startResendCooldown(60);
+  } catch (err) {
+    showCodeError('Could not resend the code. Please try again.');
+    startResendCooldown(30);
+  }
+});
+
+backBtn.addEventListener('click', showSignupStep);
