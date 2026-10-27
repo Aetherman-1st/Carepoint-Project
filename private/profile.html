@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My profile | CarePoint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/profile.css">
+  <link rel="stylesheet" href="/motion.css">
+  <script src="/motion.js" defer></script>
+</head>
+<body class="profile-page">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>CarePoint</span>
+      </a>
+      <nav class="site-nav" id="siteNav" aria-label="Main navigation">
+        <a href="/clinics">Clinics</a>
+        <a href="/services">Services</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <div class="header-actions" id="headerActions">
+        <a class="btn btn-ghost" href="/login" id="loginLink">Log in</a>
+        <a class="btn btn-primary" href="/login?next=/patient" id="bookLink">Book an appointment</a>
+        <a class="btn btn-outline btn-sm hidden" href="/patient" id="portalLink">My portal</a>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteNav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="container profile-main">
+    <div class="profile-heading" data-reveal>
+      <div>
+        <span class="profile-eyebrow">Account</span>
+        <h1>My profile</h1>
+        <p>Keep your photo and personal details up to date.</p>
+      </div>
+      <a class="btn btn-outline" href="/patient">Back to portal</a>
+    </div>
+
+    <form class="profile-layout" id="profileForm" novalidate>
+      <div class="profile-sidebar">
+        <section class="card profile-photo-card" data-reveal>
+          <div class="profile-avatar" id="profileAvatar">
+            <span id="profileInitials">CP</span>
+            <img id="profileAvatarImage" class="hidden" alt="">
+          </div>
+          <h2>Profile photo</h2>
+          <p>This photo appears in the top-right corner of your account.</p>
+          <div class="profile-photo-actions">
+            <label class="btn btn-outline btn-sm" for="avatarInput">Add photo</label>
+            <input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp" hidden>
+            <button type="button" class="btn btn-ghost btn-sm" id="removeAvatar">Remove</button>
+          </div>
+          <p class="profile-photo-note">JPG, PNG or WebP. We crop it to a square automatically.</p>
+        </section>
+
+        <section class="card profile-account-card" data-reveal>
+          <h2>Account</h2>
+          <dl class="profile-meta">
+            <div>
+              <dt>Email</dt>
+              <dd id="accountEmail">—</dd>
+            </div>
+            <div>
+              <dt>Member since</dt>
+              <dd id="accountSince">—</dd>
+            </div>
+          </dl>
+          <a class="btn btn-outline btn-sm profile-account-link" href="/patient">Care profile &amp; appointments</a>
+          <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>
+        </section>
+      </div>
+
+      <section class="card profile-details-card" data-reveal>
+        <div class="card-head">
+          <div>
+            <h2>Personal details</h2>
+            <p>Update the name and contact details linked to your account.</p>
+          </div>
+        </div>
+
+        <div class="profile-form-grid">
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input type="text" id="firstName" autocomplete="given-name" maxlength="80" required>
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input type="text" id="lastName" autocomplete="family-name" maxlength="80" required>
+          </div>
+          <div class="field profile-field-full">
+            <label for="phone">Phone number <span>(optional)</span></label>
+            <input type="tel" id="phone" autocomplete="tel" maxlength="40" placeholder="e.g. +1 555 014 2200">
+          </div>
+          <div class="field profile-field-full">
+            <label for="email">Email</label>
+            <input type="email" id="email" disabled>
+            <p class="field-note">Your email is used to sign in and cannot be changed here.</p>
+          </div>
+        </div>
+
+        <div class="profile-actions">
+          <button type="submit" class="btn btn-primary" id="saveProfile">Save changes</button>
+          <p class="form-status" id="profileStatus" role="status"></p>
+        </div>
+      </section>
+    </form>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>CarePoint</span>
+        </a>
+        <p>Book and manage clinic appointments online.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/clinics">Clinics</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/contact">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/ui.js"></script>
+  <script src="/site.js"></script>
+  <script src="/profile.js"></script>
+</body>
+</html>

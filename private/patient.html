@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My portal | CarePoint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/motion.css">
+  <script src="/motion.js" defer></script>
+</head>
+<body class="app-page">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>CarePoint</span>
+      </a>
+      <nav class="site-nav" id="siteNav" aria-label="Portal navigation">
+        <a href="#booking">Book a visit</a>
+        <a href="#appointments">My appointments</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <div class="header-actions" id="headerActions">
+        <span class="admin-user" id="userName">Patient</span>
+        <button type="button" class="btn btn-outline btn-sm" id="logoutBtn">Log out</button>
+        <a class="header-avatar hidden" id="headerProfileLink" href="/profile" aria-label="My profile" title="My profile"></a>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteNav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="container app-main">
+    <div class="app-hero" data-reveal>
+      <div>
+        <span class="page-eyebrow">Patient portal</span>
+        <h1>Hello, <span id="patientName">there</span></h1>
+        <p>Book a visit and view your appointments.</p>
+      </div>
+      <a class="btn btn-primary" href="#booking">Book an appointment</a>
+    </div>
+
+    <section class="stat-row" id="patientStats" data-reveal>
+      <div class="stat-card">
+        <div class="stat-label">Upcoming</div>
+        <div class="stat-value" id="statUpcoming" data-count-to="0">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value" id="statCompleted" data-count-to="0">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cancelled</div>
+        <div class="stat-value" id="statCancelled" data-count-to="0">0</div>
+      </div>
+    </section>
+
+    <section class="card care-profile hidden" id="careProfileCard" data-reveal>
+      <div class="card-head">
+        <div>
+          <h2>Your care profile</h2>
+          <p>The basics you shared with your care team.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" id="editCareProfile">Update</button>
+      </div>
+      <div class="care-profile-grid">
+        <div>
+          <span class="care-profile-label">Age</span>
+          <strong id="careProfileAge">—</strong>
+        </div>
+        <div>
+          <span class="care-profile-label">Conditions</span>
+          <strong id="careProfileConditions">—</strong>
+        </div>
+        <div>
+          <span class="care-profile-label">Medications</span>
+          <strong id="careProfileMedications">—</strong>
+        </div>
+      </div>
+    </section>
+
+    <div class="portal-grid" data-reveal>
+      <section class="card" id="booking">
+        <div class="card-head">
+          <div>
+            <h2>Book an appointment</h2>
+            <p>Choose a clinic, a specialist if listed, and a time.</p>
+          </div>
+        </div>
+
+        <form class="booking-form" id="bookingForm" novalidate>
+          <div class="field">
+            <label for="clinicSelect">Clinic</label>
+            <select id="clinicSelect" required>
+              <option value="">Select a clinic</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="doctorSelect">Specialist</label>
+            <select id="doctorSelect" disabled>
+              <option value="">Choose a clinic first</option>
+            </select>
+            <p class="field-note hidden" id="doctorNote">No specialists are listed for this clinic. Your request will go to the clinic.</p>
+          </div>
+          <div class="booking-row">
+            <div class="field">
+              <label for="dateInput">Date</label>
+              <input type="date" id="dateInput" required>
+            </div>
+            <div class="field">
+              <label for="timeSelect">Time</label>
+              <input type="time" id="timeSelect" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="reasonInput">Reason for visit <span>(optional)</span></label>
+            <textarea id="reasonInput"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="bookBtn">Request appointment</button>
+          <p class="form-status" id="bookingStatus" role="status"></p>
+        </form>
+      </section>
+
+      <section class="card" id="appointments">
+        <div class="card-head">
+          <div>
+            <h2>Your appointments</h2>
+            <p>Upcoming and past visits.</p>
+          </div>
+          <select id="apptFilter" class="status-select" aria-label="Filter appointments">
+            <option value="all">All</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="past">Past</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="appointment-list" id="appointmentList" aria-live="polite">
+          <div class="appt-item skeleton-appt" aria-hidden="true">
+            <div class="skeleton skeleton-line skeleton-line-md"></div>
+            <div class="skeleton skeleton-line skeleton-line-sm" style="margin-top: 9px"></div>
+            <div class="skeleton skeleton-line skeleton-line-lg" style="margin-top: 18px"></div>
+          </div>
+          <div class="appt-item skeleton-appt" aria-hidden="true">
+            <div class="skeleton skeleton-line skeleton-line-md"></div>
+            <div class="skeleton skeleton-line skeleton-line-sm" style="margin-top: 9px"></div>
+            <div class="skeleton skeleton-line skeleton-line-lg" style="margin-top: 18px"></div>
+          </div>
+          <div class="appt-item skeleton-appt" aria-hidden="true">
+            <div class="skeleton skeleton-line skeleton-line-md"></div>
+            <div class="skeleton skeleton-line skeleton-line-sm" style="margin-top: 9px"></div>
+            <div class="skeleton skeleton-line skeleton-line-lg" style="margin-top: 18px"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>CarePoint</span>
+        </a>
+        <p>Book and manage clinic appointments online.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/clinics">Clinics</a>
+        <a href="/services">Services</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/contact">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <div class="onboarding-overlay hidden" id="onboardingOverlay">
+    <div class="onboarding-card" id="onboardingCard" role="dialog" aria-modal="true" aria-label="Care profile setup">
+      <div class="onboarding-orbit" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+
+      <div class="onboarding-head">
+        <div class="onboarding-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" class="onboarding-heart">
+            <path d="M32 53S14 43 14 28.5A10.5 10.5 0 0 1 32 21a10.5 10.5 0 0 1 18 7.5C50 43 32 53 32 53Z"></path>
+            <path class="pulse-line" d="M16 33h8l3-7 4 14 4-8h13"></path>
+          </svg>
+        </div>
+        <div class="onboarding-progress-track" aria-hidden="true">
+          <span id="onboardingProgress"></span>
+        </div>
+        <p class="onboarding-step-label" id="onboardingStepLabel">Step 1 of 3</p>
+      </div>
+
+      <form id="onboardingForm" novalidate>
+        <section class="onboarding-step" data-step="1">
+          <h2 id="onboardingTitle">Let’s get to know you</h2>
+          <p class="onboarding-copy">A few quick details help your care team prepare for your visit.</p>
+          <div class="field onboarding-field">
+            <label for="onboardingAge">How old are you?</label>
+            <input type="number" id="onboardingAge" min="1" max="120" inputmode="numeric" placeholder="e.g. 34">
+          </div>
+          <p class="onboarding-hint">Your age helps clinics match you with the right care.</p>
+        </section>
+
+        <section class="onboarding-step hidden" data-step="2">
+          <h2>Anything we should know?</h2>
+          <p class="onboarding-copy">Tell us about any health conditions or problems you’re managing.</p>
+          <div class="onboarding-chips" aria-label="Common conditions">
+            <button type="button" class="onboarding-chip" data-condition="Diabetes">Diabetes</button>
+            <button type="button" class="onboarding-chip" data-condition="Asthma">Asthma</button>
+            <button type="button" class="onboarding-chip" data-condition="Heart condition">Heart condition</button>
+            <button type="button" class="onboarding-chip" data-condition="Allergies">Allergies</button>
+            <button type="button" class="onboarding-chip" data-condition="Mobility support">Mobility support</button>
+            <button type="button" class="onboarding-chip" data-condition="None">None</button>
+          </div>
+          <div class="field onboarding-field">
+            <label for="onboardingConditions">Conditions or problems <span>(optional)</span></label>
+            <textarea id="onboardingConditions" placeholder="For example: asthma, migraines, recent knee pain..."></textarea>
+          </div>
+        </section>
+
+        <section class="onboarding-step hidden" data-step="3">
+          <h2>Any medications?</h2>
+          <p class="onboarding-copy">List any pills or treatments you use regularly. This is optional.</p>
+          <div class="field onboarding-field">
+            <label for="onboardingMedications">Medications or treatments</label>
+            <textarea id="onboardingMedications" placeholder="For example: metformin 500mg, vitamin D..."></textarea>
+          </div>
+          <label class="check-row" for="noMedications">
+            <input type="checkbox" id="noMedications">
+            <span>I’m not taking any medications</span>
+          </label>
+        </section>
+
+        <p id="onboardingError" class="auth-error onboarding-error" role="alert"></p>
+
+        <div class="onboarding-actions">
+          <button type="button" id="onboardingBack" class="btn btn-ghost hidden">Back</button>
+          <button type="submit" id="onboardingNext" class="btn btn-primary">Continue</button>
+        </div>
+      </form>
+
+      <div class="onboarding-success hidden" id="onboardingSuccess">
+        <div class="success-ring" aria-hidden="true">
+          <svg viewBox="0 0 52 52"><path d="M14 27l8 8 16-18"></path></svg>
+          <span class="success-ping"></span>
+        </div>
+        <h2>You’re all set</h2>
+        <p>Your care profile is ready. Your clinic team will have useful context before your next visit.</p>
+        <button type="button" id="onboardingDone" class="btn btn-primary">Go to my portal</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/ui.js"></script>
+  <script src="/patient.js"></script>
+</body>
+</html>
