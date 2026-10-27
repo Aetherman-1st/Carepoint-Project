@@ -1,0 +1,638 @@
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 200ms;
+  --motion-base: 360ms;
+  --motion-slow: 560ms;
+}
+
+html.cp-page-ready body {
+  animation: cpPageIn 360ms var(--ease-out) both;
+}
+
+html.cp-is-leaving body {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.page-masthead {
+  position: relative;
+  overflow: hidden;
+  padding: 54px 0 42px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-masthead::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(58%, 640px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M21 12h6v9h9v6h-9v9h-6v-9h-9v-6h9z' fill='%23d62828' fill-opacity='.065'/%3E%3C/svg%3E");
+  background-position: center right;
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+.page-masthead::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.9;
+}
+
+.page-masthead-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.page-eyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.page-masthead h1 {
+  max-width: 20ch;
+  font-size: clamp(32px, 4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.page-masthead p {
+  max-width: 58ch;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page-ecg {
+  width: 194px;
+  height: 22px;
+  margin-top: 18px;
+  overflow: visible;
+}
+
+.page-ecg-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 310;
+  stroke-dashoffset: 310;
+  animation: cpEcgDraw 1.2s 160ms var(--ease-out) forwards;
+}
+
+.cp-ripple-host {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.cp-ripple {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.18;
+  pointer-events: none;
+  transform: scale(0);
+  animation: cpRipple 560ms var(--ease-out) forwards;
+}
+
+.btn,
+.clinic-book-btn,
+.clinics-contact-btn,
+.clinic-clear-btn,
+.header-avatar,
+.admin-nav button,
+.clinic-directory-card,
+.service-item,
+.stat-card,
+.tbody tr {
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+.btn svg,
+.clinic-book-btn svg,
+.clinics-contact-btn svg {
+  transition: transform 260ms var(--ease-out);
+}
+
+.btn:active,
+.clinic-book-btn:active,
+.clinics-contact-btn:active {
+  transform: scale(0.985);
+}
+
+.btn:focus-visible,
+.clinic-book-btn:focus-visible,
+.clinics-contact-btn:focus-visible,
+.clinic-clear-btn:focus-visible,
+.chip:focus-visible,
+.header-avatar:focus-visible,
+.admin-nav button:focus-visible,
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.field input,
+.field select,
+.field textarea,
+.toolbar input,
+.toolbar select,
+.clinic-search input,
+.reply-form textarea,
+.status-select {
+  transition: border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out),
+    background-color 220ms var(--ease-out);
+}
+
+.stat-card,
+.service-item {
+  transition-property: transform, border-color, box-shadow, background-color;
+}
+
+@media (hover: hover) {
+  .btn:hover svg,
+  .clinic-book-btn:hover svg,
+  .clinics-contact-btn:hover svg {
+    transform: translateX(2px);
+  }
+
+  .btn:hover,
+  .clinic-book-btn:hover,
+  .clinics-contact-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn:active,
+  .clinic-book-btn:active,
+  .clinics-contact-btn:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  .stat-card:hover,
+  .service-item:hover {
+    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-hover);
+  }
+}
+
+.service-item {
+  transition-property: transform, border-color, box-shadow;
+}
+
+.clinic-directory-card.is-entering {
+  animation: cpCardIn var(--motion-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--card-index, 0) * 55ms);
+}
+
+.service-item.is-entering,
+.appt-item.is-entering,
+.message.is-entering,
+tbody tr.is-entering {
+  animation: cpItemIn 420ms var(--ease-out) backwards;
+  animation-delay: calc(var(--item-index, 0) * 45ms);
+}
+
+tbody tr {
+  transition-property: background-color;
+}
+
+.admin-nav {
+  position: relative;
+}
+
+.admin-nav-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 40px;
+  border-radius: 2px;
+  z-index: 2;
+  background: var(--accent);
+  pointer-events: none;
+  transition: transform 420ms var(--ease-out), height 300ms var(--ease-out);
+  will-change: transform;
+}
+
+.admin-nav button {
+  border-left-color: transparent;
+  transition-property: color, background-color, padding-left;
+}
+
+.admin-nav button.active {
+  border-left-color: transparent;
+}
+
+.admin-view.is-entering {
+  animation: cpViewIn 360ms var(--ease-out) both;
+}
+
+.admin-topbar h1 {
+  animation: cpItemIn 360ms var(--ease-out) both;
+}
+
+.toast:not(.hidden) {
+  animation: cpToastIn 360ms var(--ease-out) both;
+}
+
+.skeleton {
+  display: block;
+  border-radius: 5px;
+  background: #e9eaed;
+  animation: cpSkeletonPulse 1.35s ease-in-out infinite;
+}
+
+.skeleton-card {
+  min-height: 250px;
+  padding: 26px 24px 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.skeleton-mark {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 10px;
+}
+
+.skeleton-stack {
+  display: grid;
+  flex: 1;
+  gap: 9px;
+}
+
+.skeleton-line {
+  height: 10px;
+}
+
+.skeleton-line-sm {
+  width: 38%;
+}
+
+.skeleton-line-md {
+  width: 67%;
+}
+
+.skeleton-line-lg {
+  width: 88%;
+}
+
+.skeleton-block {
+  height: 44px;
+  margin-top: 24px;
+  border-radius: 8px;
+}
+
+.skeleton-table-row td {
+  padding-block: 16px;
+}
+
+.skeleton-table-line {
+  height: 9px;
+}
+
+.skeleton-message {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.skeleton-service {
+  display: grid;
+  gap: 12px;
+  min-height: 108px;
+  align-content: center;
+}
+
+.skeleton-service .skeleton-line {
+  margin: 0;
+}
+
+.admin-view.is-entering .stat-card {
+  animation: cpItemIn 420ms var(--ease-out) backwards;
+}
+
+.admin-view.is-entering .stat-card:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.admin-view.is-entering .stat-card:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.admin-view.is-entering .stat-card:nth-child(4) {
+  animation-delay: 135ms;
+}
+
+.onboarding-overlay {
+  background: rgba(31, 35, 40, 0.54);
+  backdrop-filter: none;
+}
+
+.patient-modal-overlay:not(.hidden) {
+  animation: cpFadeIn 180ms ease both;
+}
+
+.patient-modal-card {
+  animation: cpModalIn 360ms var(--ease-out) both;
+}
+
+.onboarding-overlay.is-closing {
+  animation: cpFadeOut 190ms ease forwards;
+  pointer-events: none;
+}
+
+.onboarding-card {
+  animation: cpModalIn 420ms var(--ease-out) both;
+}
+
+.onboarding-overlay.is-closing .onboarding-card {
+  animation: cpModalOut 190ms ease forwards;
+}
+
+.onboarding-progress-track span {
+  background: var(--accent);
+  transition: width 420ms var(--ease-out);
+}
+
+.onboarding-mark {
+  animation: logoPulse 500ms var(--ease-out) 1 both;
+}
+
+.onboarding-heart .pulse-line {
+  animation: ecgDraw 900ms 160ms var(--ease-out) 1 both;
+}
+
+.onboarding-orbit span {
+  animation: orbitFloat 5s var(--ease-out) 1 both;
+}
+
+.onboarding-orbit span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.onboarding-orbit span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.onboarding-step,
+.onboarding-success {
+  animation: cpItemIn 360ms var(--ease-out) both;
+}
+
+.onboarding-chip.is-active {
+  animation: chipPop 300ms var(--ease-out) 1 both;
+}
+
+.success-ring path {
+  animation: successCheck 600ms 120ms var(--ease-out) 1 forwards;
+}
+
+.success-ping {
+  animation: successPing 900ms 120ms var(--ease-out) 1 both;
+}
+
+@media (hover: hover) {
+  .home-link-card:hover .home-link-arrow {
+    transform: translateX(3px);
+  }
+
+  .home-link-card:hover {
+    transform: translateY(-3px);
+  }
+
+  .home-link-card:hover .home-link-icon {
+    transform: rotate(0deg) scale(1.04);
+  }
+}
+
+@keyframes cpPageIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cpEcgDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes cpRipple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes cpCardIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cpItemIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 9px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cpViewIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cpToastIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cpSkeletonPulse {
+  0%,
+  100% {
+    opacity: 0.48;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes cpFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cpModalIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cpModalOut {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.985);
+  }
+}
+
+@keyframes cpFadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes cpNavDrop {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (max-width: 640px) {
+  .page-masthead {
+    padding: 38px 0 32px;
+  }
+
+  .page-masthead h1 {
+    font-size: 33px;
+  }
+
+  .page-ecg {
+    width: 168px;
+    margin-top: 14px;
+  }
+
+  .app-hero .page-eyebrow {
+    margin-bottom: 6px;
+  }
+}
+
+@media (max-width: 860px) {
+  .site-nav.open {
+    animation: cpNavDrop 260ms var(--ease-out) both;
+  }
+
+  .header-actions.open {
+    animation: cpNavDrop 300ms 20ms var(--ease-out) both;
+  }
+
+  .admin-nav-indicator {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.cp-page-ready body,
+  html.cp-is-leaving body,
+  .page-ecg-path,
+  .admin-view.is-entering,
+  .admin-topbar h1,
+  .clinic-directory-card.is-entering,
+  .service-item.is-entering,
+  .appt-item.is-entering,
+  .message.is-entering,
+  tbody tr.is-entering,
+  .toast:not(.hidden),
+  .patient-modal-overlay:not(.hidden),
+  .patient-modal-card,
+  .onboarding-overlay,
+  .onboarding-card,
+  .onboarding-overlay.is-closing,
+  .onboarding-overlay.is-closing .onboarding-card,
+  .onboarding-mark,
+  .onboarding-heart .pulse-line,
+  .onboarding-orbit span,
+  .onboarding-step,
+  .onboarding-success,
+  .onboarding-chip.is-active,
+  .success-ring path,
+  .success-ping {
+    animation: none !important;
+  }
+
+  .site-nav.open,
+  .header-actions.open {
+    animation: none !important;
+  }
+
+  .skeleton {
+    animation: none;
+    opacity: 0.65;
+  }
+
+  .btn:hover,
+  .btn:active,
+  .clinic-book-btn:hover,
+  .clinic-book-btn:active,
+  .clinics-contact-btn:hover,
+  .clinics-contact-btn:active,
+  .home-link-card:hover,
+  .stat-card:hover,
+  .service-item:hover {
+    transform: none;
+  }
+}
