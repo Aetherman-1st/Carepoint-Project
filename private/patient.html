@@ -7,7 +7,9 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/motion.css">
+  <link rel="stylesheet" href="/chatbot.css">
   <script src="/motion.js" defer></script>
+  <script src="/chatbot.js" defer></script>
 </head>
 <body class="app-page">
   <header class="site-header">
@@ -19,6 +21,7 @@
       <nav class="site-nav" id="siteNav" aria-label="Portal navigation">
         <a href="#booking">Book a visit</a>
         <a href="#appointments">My appointments</a>
+        <a href="/meetings">Meetings</a>
         <a href="/contact">Contact</a>
       </nav>
       <div class="header-actions" id="headerActions">
@@ -41,7 +44,16 @@
         <h1>Hello, <span id="patientName">there</span></h1>
         <p>Book a visit and view your appointments.</p>
       </div>
-      <a class="btn btn-primary" href="#booking">Book an appointment</a>
+      <div class="app-hero-actions">
+        <a class="btn btn-primary" href="#booking">Book an appointment</a>
+        <button type="button" class="btn btn-outline zoom-hero-btn" id="zoomHeroBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="6" width="14" height="12" rx="2"></rect>
+            <path d="m16 10 6-3v10l-6-3"></path>
+          </svg>
+          Meet online via Zoom
+        </button>
+      </div>
     </div>
 
     <section class="stat-row" id="patientStats" data-reveal>
@@ -57,6 +69,27 @@
         <div class="stat-label">Cancelled</div>
         <div class="stat-value" id="statCancelled" data-count-to="0">0</div>
       </div>
+    </section>
+
+    <section class="charts-grid" data-reveal>
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Visit activity</h2>
+            <p>Your appointments across the last six months.</p>
+          </div>
+        </div>
+        <div class="cp-chart" id="chartActivity" aria-live="polite"></div>
+      </section>
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Visit status</h2>
+            <p>How your appointments are progressing.</p>
+          </div>
+        </div>
+        <div class="cp-chart cp-chart-donut" id="chartStatus" aria-live="polite"></div>
+      </section>
     </section>
 
     <section class="card care-profile hidden" id="careProfileCard" data-reveal>
@@ -105,6 +138,27 @@
               <option value="">Choose a clinic first</option>
             </select>
             <p class="field-note hidden" id="doctorNote">No specialists are listed for this clinic. Your request will go to the clinic.</p>
+          </div>
+          <div class="field">
+            <span class="field-label">Visit type</span>
+            <div class="visit-type-toggle" role="group" aria-label="Visit type">
+              <button type="button" class="visit-type-option is-active" data-visit-type="in_person">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 21h18M5 21V7l7-4 7 4v14"></path>
+                  <path d="M9 21v-5h6v5"></path>
+                </svg>
+                In person
+              </button>
+              <button type="button" class="visit-type-option" data-visit-type="online">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="6" width="14" height="12" rx="2"></rect>
+                  <path d="m16 10 6-3v10l-6-3"></path>
+                </svg>
+                Online via Zoom
+              </button>
+            </div>
+            <input type="hidden" id="visitType" value="in_person">
+            <p class="field-note hidden" id="onlineNote">A Zoom meeting is created automatically and its link appears on your Meetings page.</p>
           </div>
           <div class="booking-row">
             <div class="field">
@@ -258,6 +312,7 @@
   </div>
 
   <script src="/ui.js"></script>
+  <script src="/charts.js"></script>
   <script src="/patient.js"></script>
 </body>
 </html>

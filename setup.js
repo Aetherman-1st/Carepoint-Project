@@ -75,6 +75,13 @@ async function run() {
 
     ALTER TABLE appointments ALTER COLUMN doctor_id DROP NOT NULL;
 
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS visit_type text NOT NULL DEFAULT 'in_person';
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS zoom_meeting_id text;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS zoom_join_url text;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS zoom_start_url text;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS zoom_password text;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS zoom_status text;
+
     CREATE INDEX IF NOT EXISTS appointments_date_idx ON appointments (appointment_date);
     CREATE INDEX IF NOT EXISTS appointments_user_idx ON appointments (user_id);
 

@@ -3,6 +3,8 @@ const doctorSelect = document.getElementById('doctorSelect');
 const doctorNote = document.getElementById('doctorNote');
 const dateInput = document.getElementById('dateInput');
 const timeSelect = document.getElementById('timeSelect');
+const visitType = document.getElementById('visitType');
+const onlineNote = document.getElementById('onlineNote');
 const reasonInput = document.getElementById('reasonInput');
 const bookingForm = document.getElementById('bookingForm');
 const bookBtn = document.getElementById('bookBtn');
@@ -192,6 +194,53 @@ function renderStats() {
   count(document.getElementById('statCancelled'), cancelled);
 }
 
+function renderCharts() {
+  const charts = window.CarePointCharts;
+  if (!charts) return;
+
+  const months = [];
+  const now = new Date();
+
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    months.push({
+      key,
+      label: date.toLocaleDateString(undefined, { month: 'short' })
+    });
+  }
+
+  const counts = new Map(months.map((month) => [month.key, 0]));
+  appointments.forEach((appointment) => {
+    const key = String(appointment.appointment_date || '').slice(0, 7);
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+  });
+
+  charts.barChart(
+    document.getElementById('chartActivity'),
+    months.map((month) => ({ label: month.label, value: counts.get(month.key) })),
+    { label: 'Appointments per month' }
+  );
+
+  const statusColors = {
+    Pending: '#b45309',
+    Confirmed: '#15803d',
+    Completed: '#1d4ed8',
+    Cancelled: '#6b7280'
+  };
+
+  const statuses = ['Pending', 'Confirmed', 'Completed', 'Cancelled'].map((status) => ({
+    label: status,
+    value: appointments.filter((appointment) => appointment.status === status).length,
+    color: statusColors[status]
+  }));
+
+  charts.donutChart(document.getElementById('chartStatus'), statuses, {
+    label: 'Appointments by status',
+    centerLabel: 'appointments'
+  });
+}
+
 function sortAppointments(list) {
   const upcoming = list.filter(isUpcoming).sort((a, b) =>
     `${a.appointment_date} ${a.appointment_time}`.localeCompare(`${b.appointment_date} ${b.appointment_time}`)
@@ -250,11 +299,15 @@ function renderAppointments() {
             <span>${esc(formatDate(appointment.appointment_date))}</span>
             <span>${esc(formatTime(appointment.appointment_time))}</span>
             <span>${esc(appointment.clinic_city)}</span>
+            ${appointment.visit_type === 'online' ? '<span class="appt-online">Online · Zoom</span>' : ''}
           </div>
           ${appointment.reason ? `<div class="appt-sub">Reason: ${esc(appointment.reason)}</div>` : ''}
           ${
-            canCancel
-              ? `<div class="appt-actions"><button type="button" class="btn btn-sm btn-danger" data-cancel="${appointment.id}">Cancel appointment</button></div>`
+            canCancel || appointment.visit_type === 'online'
+              ? `<div class="appt-actions">
+                   ${appointment.visit_type === 'online' ? '<a class="btn btn-sm btn-outline" href="/meetings">Meeting link</a>' : ''}
+                   ${canCancel ? `<button type="button" class="btn btn-sm btn-danger" data-cancel="${appointment.id}">Cancel appointment</button>` : ''}
+                 </div>`
               : ''
           }
         </article>
@@ -270,8 +323,10 @@ async function loadAppointments() {
     appointments = await response.json();
     renderStats();
     renderAppointments();
+    renderCharts();
   } catch (err) {
     appointmentList.innerHTML = '<div class="empty">Could not load your appointments. Please refresh.</div>';
+    renderCharts();
   }
 }
 
@@ -501,6 +556,43 @@ onboardingDone.addEventListener('click', () => {
 
 clinicSelect.addEventListener('change', fillDoctors);
 
+const visitTypeButtons = document.querySelectorAll('[data-visit-type]');
+
+function setVisitType(value) {
+  const next = value === 'online' ? 'online' : 'in_person';
+  visitType.value = next;
+
+  visitTypeButtons.forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.visitType === next);
+    button.setAttribute('aria-pressed', button.dataset.visitType === next ? 'true' : 'false');
+  });
+
+  onlineNote.classList.toggle('hidden', next !== 'online');
+}
+
+visitTypeButtons.forEach((button) => {
+  button.addEventListener('click', () => setVisitType(button.dataset.visitType));
+});
+
+const zoomHeroBtn = document.getElementById('zoomHeroBtn');
+if (zoomHeroBtn) {
+  zoomHeroBtn.addEventListener('click', () => {
+    setVisitType('online');
+    const booking = document.getElementById('booking');
+    if (booking) booking.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+if (new URLSearchParams(window.location.search).get('online') === '1') {
+  setVisitType('online');
+  const booking = document.getElementById('booking');
+  if (booking) {
+    window.setTimeout(() => {
+      booking.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+  }
+}
+
 bookingForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   setStatus('', '');
@@ -531,7 +623,8 @@ bookingForm.addEventListener('submit', async (event) => {
         doctor_id: doctorSelect.value || null,
         appointment_date: dateInput.value,
         appointment_time: timeSelect.value,
-        reason: reasonInput.value.trim()
+        reason: reasonInput.value.trim(),
+        visit_type: visitType.value
       })
     });
     const data = await response.json();
@@ -539,7 +632,7 @@ bookingForm.addEventListener('submit', async (event) => {
     if (!response.ok) {
       setStatus(data.message || 'Could not book the appointment.', 'err');
     } else {
-      setStatus('Appointment requested. Status: Pending.', 'ok');
+      setStatus(data.message || 'Appointment requested. Status: Pending.', 'ok');
       reasonInput.value = '';
       timeSelect.value = '';
       await loadAppointments();

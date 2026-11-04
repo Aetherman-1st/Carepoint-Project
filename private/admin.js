@@ -668,6 +668,51 @@ function renderMessages() {
     .join('');
 }
 
+function renderCharts() {
+  const charts = window.CarePointCharts;
+  if (!charts) return;
+
+  const statusColors = {
+    Pending: '#b45309',
+    Confirmed: '#15803d',
+    Completed: '#1d4ed8',
+    Cancelled: '#6b7280'
+  };
+
+  charts.donutChart(
+    document.getElementById('adminChartStatus'),
+    ['Pending', 'Confirmed', 'Completed', 'Cancelled'].map((status) => ({
+      label: status,
+      value: state.appointments.filter((appointment) => appointment.status === status).length,
+      color: statusColors[status]
+    })),
+    { label: 'Appointments by status', centerLabel: 'appointments' }
+  );
+
+  const months = [];
+  const now = new Date();
+
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    months.push({
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+      label: date.toLocaleDateString(undefined, { month: 'short' })
+    });
+  }
+
+  const counts = new Map(months.map((month) => [month.key, 0]));
+  state.appointments.forEach((appointment) => {
+    const key = String(appointment.appointment_date || '').slice(0, 7);
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+  });
+
+  charts.barChart(
+    document.getElementById('adminChartActivity'),
+    months.map((month) => ({ label: month.label, value: counts.get(month.key) })),
+    { label: 'Bookings per month' }
+  );
+}
+
 function renderAll() {
   renderStats();
   renderRecentAppointments();
@@ -675,6 +720,7 @@ function renderAll() {
   renderUsers();
   renderAppointments();
   renderMessages();
+  renderCharts();
 }
 
 function positionAdminIndicator() {

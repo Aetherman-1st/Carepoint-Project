@@ -117,6 +117,27 @@
           </div>
         </div>
 
+        <section class="charts-grid">
+          <section class="card">
+            <div class="card-head">
+              <div>
+                <h2>Appointments by status</h2>
+                <p>Live distribution across all bookings.</p>
+              </div>
+            </div>
+            <div class="cp-chart cp-chart-donut" id="adminChartStatus" aria-live="polite"></div>
+          </section>
+          <section class="card">
+            <div class="card-head">
+              <div>
+                <h2>Bookings by month</h2>
+                <p>Appointment volume over the last six months.</p>
+              </div>
+            </div>
+            <div class="cp-chart" id="adminChartActivity" aria-live="polite"></div>
+          </section>
+        </section>
+
         <div class="admin-grid">
           <section class="card">
             <div class="card-head">
@@ -275,6 +296,7 @@
   <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
 
   <script src="/ui.js"></script>
+  <script src="/charts.js"></script>
   <script src="/admin.js"></script>
 </body>
 </html>

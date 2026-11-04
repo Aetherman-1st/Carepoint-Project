@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { requireAuth, isAdminEmail } = require('../lib/auth');
+const zoom = require('../lib/zoom');
 
 const router = express.Router();
 
@@ -13,6 +14,11 @@ const baseSelect = `
     a.appointment_time,
     a.reason,
     a.status,
+    a.visit_type,
+    a.zoom_meeting_id,
+    a.zoom_join_url,
+    a.zoom_password,
+    a.zoom_status,
     a.created_at,
     c.name AS clinic_name,
     c.specialty AS clinic_specialty,
@@ -52,9 +58,10 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { clinic_id, doctor_id, appointment_date, appointment_time, reason } = req.body || {};
+  const { clinic_id, doctor_id, appointment_date, appointment_time, reason, visit_type } = req.body || {};
   const clinicId = Number(clinic_id);
   const doctorId = doctor_id ? Number(doctor_id) : null;
+  const visitType = visit_type === 'online' ? 'online' : 'in_person';
 
   if (!clinicId || !appointment_date || !appointment_time) {
     return res.status(400).json({ message: 'Please choose a clinic, date and time.' });
@@ -85,10 +92,11 @@ router.post('/', requireAuth, async (req, res) => {
   const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : null;
 
   try {
-    const clinic = await pool.query('SELECT id FROM clinics WHERE id = $1', [clinicId]);
+    const clinic = await pool.query('SELECT id, name FROM clinics WHERE id = $1', [clinicId]);
     if (clinic.rows.length === 0) {
       return res.status(400).json({ message: 'That clinic is not available.' });
     }
+    const clinicName = clinic.rows[0].name;
 
     if (doctorId) {
       const doctor = await pool.query('SELECT id FROM doctors WHERE id = $1 AND clinic_id = $2', [
@@ -119,13 +127,81 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO appointments (user_id, clinic_id, doctor_id, appointment_date, appointment_time, reason)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO appointments
+         (user_id, clinic_id, doctor_id, appointment_date, appointment_time, reason, visit_type, zoom_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id`,
-      [req.user.id, clinicId, doctorId, appointment_date, appointment_time, cleanReason]
+      [
+        req.user.id,
+        clinicId,
+        doctorId,
+        appointment_date,
+        appointment_time,
+        cleanReason,
+        visitType,
+        visitType === 'online' ? (zoom.isConfigured() ? 'creating' : 'pending_config') : null
+      ]
     );
 
-    res.status(201).json({ message: 'Appointment requested', id: result.rows[0].id });
+    const appointmentId = result.rows[0].id;
+    let meeting = null;
+    let zoomStatus = visitType === 'online' ? (zoom.isConfigured() ? 'creating' : 'pending_config') : null;
+    let zoomError = null;
+
+    if (visitType === 'online' && zoom.isConfigured()) {
+      try {
+        meeting = await zoom.createMeeting({
+          topic: `CarePoint visit — ${clinicName}`,
+          startTime: zoom.buildStartTime(appointment_date, appointment_time),
+          duration: zoom.DEFAULT_DURATION,
+          agenda: cleanReason || `Online appointment at ${clinicName}`,
+          timezone: zoom.DEFAULT_TIMEZONE
+        });
+
+        zoomStatus = 'scheduled';
+        await pool.query(
+          `UPDATE appointments
+           SET zoom_meeting_id = $1,
+               zoom_join_url = $2,
+               zoom_start_url = $3,
+               zoom_password = $4,
+               zoom_status = $5,
+               updated_at = now()
+           WHERE id = $6`,
+          [meeting.id, meeting.joinUrl, meeting.startUrl, meeting.password, zoomStatus, appointmentId]
+        );
+      } catch (err) {
+        zoomStatus = 'failed';
+        zoomError = err.message;
+        await pool.query(
+          'UPDATE appointments SET zoom_status = $1, updated_at = now() WHERE id = $2',
+          [zoomStatus, appointmentId]
+        );
+      }
+    }
+
+    const isOnline = visitType === 'online';
+    res.status(201).json({
+      message: isOnline
+        ? zoomStatus === 'scheduled'
+          ? 'Online appointment requested. Your Zoom meeting is ready.'
+          : zoomStatus === 'pending_config'
+            ? 'Online appointment requested. The Zoom link will appear once Zoom is connected.'
+            : 'Online appointment requested, but the Zoom meeting could not be created yet.'
+        : 'Appointment requested',
+      id: appointmentId,
+      visit_type: visitType,
+      zoom_status: zoomStatus,
+      zoom_error: zoomError,
+      meeting: meeting
+        ? {
+            id: meeting.id,
+            join_url: meeting.joinUrl,
+            password: meeting.password,
+            start_time: meeting.startTime
+          }
+        : null
+    });
   } catch (err) {
     res.status(500).json({ message: 'Could not book the appointment' });
   }
@@ -161,6 +237,15 @@ router.patch('/:id', requireAuth, async (req, res) => {
     }
 
     await pool.query('UPDATE appointments SET status = $1, updated_at = now() WHERE id = $2', [status, id]);
+
+    if (status === 'Cancelled' && appointment.zoom_meeting_id) {
+      const removed = await zoom.deleteMeeting(appointment.zoom_meeting_id);
+      await pool.query(
+        'UPDATE appointments SET zoom_status = $1, updated_at = now() WHERE id = $2',
+        [removed ? 'cancelled' : 'cancel_pending', id]
+      );
+    }
+
     res.json({ message: 'Appointment updated', status });
   } catch (err) {
     res.status(500).json({ message: 'Could not update the appointment' });

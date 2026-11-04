@@ -14,6 +14,8 @@ const contactRoute = require('./routes/contact');
 const adminRoute = require('./routes/admin');
 const onboardingRoute = require('./routes/onboarding');
 const profileRoute = require('./routes/profile');
+const meetingsRoute = require('./routes/meetings');
+const chatbotRoute = require('./routes/chatbot');
 
 const app = express();
 const privateDir = path.join(__dirname, 'private');
@@ -87,6 +89,18 @@ app.get('/admin.js', requireAdminPage, (req, res) => {
   res.sendFile(path.join(privateDir, 'admin.js'));
 });
 
+app.get('/meetings', requireUserPage, (req, res) => {
+  res.sendFile(path.join(privateDir, 'meetings.html'));
+});
+
+app.get('/meetings.html', requireUserPage, (req, res) => {
+  res.redirect(301, '/meetings');
+});
+
+app.get('/meetings.js', requireUserPage, (req, res) => {
+  res.sendFile(path.join(privateDir, 'meetings.js'));
+});
+
 app.get('/book', (req, res) => {
   const clinic = typeof req.query.clinic === 'string' ? req.query.clinic.trim() : '';
   const target = clinic
@@ -134,6 +148,8 @@ app.use('/api/contact', contactRoute);
 app.use('/api/admin', adminRoute);
 app.use('/api/onboarding', onboardingRoute);
 app.use('/api/profile', profileRoute);
+app.use('/api/meetings', meetingsRoute);
+app.use('/api/chatbot', chatbotRoute);
 
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {

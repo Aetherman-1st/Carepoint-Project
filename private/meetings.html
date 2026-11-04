@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meetings | CarePoint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/motion.css">
+  <link rel="stylesheet" href="/chatbot.css">
+  <script src="/motion.js" defer></script>
+  <script src="/chatbot.js" defer></script>
+</head>
+<body class="app-page">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>CarePoint</span>
+      </a>
+      <nav class="site-nav" id="siteNav" aria-label="Portal navigation">
+        <a href="/patient">My portal</a>
+        <a href="/patient#booking">Book a visit</a>
+        <a href="/meetings" class="is-active">Meetings</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <div class="header-actions" id="headerActions">
+        <span class="admin-user" id="userName">Patient</span>
+        <button type="button" class="btn btn-outline btn-sm" id="logoutBtn">Log out</button>
+        <a class="header-avatar hidden" id="headerProfileLink" href="/profile" aria-label="My profile" title="My profile"></a>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteNav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="container app-main">
+    <div class="app-hero" data-reveal>
+      <div>
+        <span class="page-eyebrow">Online care</span>
+        <h1>Your meetings</h1>
+        <p>Join the Zoom meetings created for your online appointments.</p>
+      </div>
+      <a class="btn btn-primary" href="/patient?online=1#booking">Create Zoom meeting</a>
+    </div>
+
+    <section class="meeting-notice hidden" id="zoomNotice" data-reveal>
+      <strong>Zoom is not connected yet.</strong>
+      <p>Online appointments are saved now. As soon as the Zoom API keys are added to the server, meeting links will appear here automatically.</p>
+    </section>
+
+    <section class="card" data-reveal>
+      <div class="card-head">
+        <div>
+          <h2>Meeting links</h2>
+          <p>Every online appointment and its Zoom details.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" id="refreshMeetings">Refresh</button>
+      </div>
+      <div class="meeting-list" id="meetingList" aria-live="polite">
+        <div class="appt-item skeleton-appt" aria-hidden="true">
+          <div class="skeleton skeleton-line skeleton-line-md"></div>
+          <div class="skeleton skeleton-line skeleton-line-sm" style="margin-top: 9px"></div>
+          <div class="skeleton skeleton-line skeleton-line-lg" style="margin-top: 18px"></div>
+        </div>
+        <div class="appt-item skeleton-appt" aria-hidden="true">
+          <div class="skeleton skeleton-line skeleton-line-md"></div>
+          <div class="skeleton skeleton-line skeleton-line-sm" style="margin-top: 9px"></div>
+          <div class="skeleton skeleton-line skeleton-line-lg" style="margin-top: 18px"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>CarePoint</span>
+        </a>
+        <p>Book and manage clinic appointments online.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/clinics">Clinics</a>
+        <a href="/services">Services</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/contact">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/ui.js"></script>
+  <script src="/meetings.js"></script>
+</body>
+</html>
