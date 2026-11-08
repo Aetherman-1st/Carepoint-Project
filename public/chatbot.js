@@ -1,5 +1,55 @@
-(function () {
+(async function () {
   if (document.getElementById('cpChatWidget')) return;
+
+  function loadScript(src) {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    document.body.appendChild(script);
+    return script;
+  }
+
+  async function loadTidio(publicKey) {
+    const safeKey = String(publicKey).replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeKey) return;
+
+    try {
+      const response = await fetch('/api/session');
+      const data = await response.json();
+      if (data.user) {
+        document.tidioIdentify = {
+          distinct_id: 'cp_' + data.user.id,
+          email: data.user.email,
+          name:
+            [data.user.first_name, data.user.last_name].filter(Boolean).join(' ') ||
+            data.user.email
+        };
+      }
+    } catch (err) {
+      /* identify is optional */
+    }
+
+    loadScript(`https://code.tidio.co/${safeKey}.js`);
+  }
+
+  let config = { provider: 'local' };
+
+  try {
+    const response = await fetch('/api/chatbot/config');
+    if (response.ok) config = await response.json();
+  } catch (err) {
+    config = { provider: 'local' };
+  }
+
+  if (config.provider === 'tidio' && config.tidioPublicKey) {
+    await loadTidio(config.tidioPublicKey);
+    return;
+  }
+
+  if (config.provider === 'luna' && config.lunaEmbedUrl) {
+    loadScript(config.lunaEmbedUrl);
+    return;
+  }
 
   const history = [];
   let sending = false;

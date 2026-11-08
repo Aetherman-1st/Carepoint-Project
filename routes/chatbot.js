@@ -6,6 +6,8 @@ const router = express.Router();
 const CHATBOT_API_URL = (process.env.CHATBOT_API_URL || '').trim();
 const CHATBOT_API_KEY = (process.env.CHATBOT_API_KEY || '').trim();
 const CHATBOT_MODEL = (process.env.CHATBOT_MODEL || '').trim();
+const TIDIO_PUBLIC_KEY = (process.env.TIDIO_PUBLIC_KEY || '').trim();
+const LUNA_EMBED_URL = (process.env.LUNA_EMBED_URL || '').trim();
 
 const DEFAULT_SUGGESTIONS = [
   'How do I book an appointment?',
@@ -305,18 +307,31 @@ async function askExternalModel(message, history, context) {
     { role: 'user', content: String(message).slice(0, 2000) }
   ];
 
+  const isOpenAI = /api\.openai\.com/i.test(CHATBOT_API_URL);
+  const requestBody = {
+    model: CHATBOT_MODEL || undefined,
+    messages
+  };
+
+  if (isOpenAI) {
+    requestBody.max_completion_tokens = 400;
+    if (/^gpt-6/i.test(CHATBOT_MODEL)) {
+      requestBody.reasoning_effort = 'none';
+    } else {
+      requestBody.temperature = 0.4;
+    }
+  } else {
+    requestBody.max_tokens = 400;
+    requestBody.temperature = 0.4;
+  }
+
   const response = await fetch(CHATBOT_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(CHATBOT_API_KEY ? { Authorization: `Bearer ${CHATBOT_API_KEY}` } : {})
     },
-    body: JSON.stringify({
-      model: CHATBOT_MODEL || undefined,
-      messages,
-      temperature: 0.4,
-      max_tokens: 400
-    })
+    body: JSON.stringify(requestBody)
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -333,6 +348,24 @@ async function askExternalModel(message, history, context) {
 
   return content ? String(content).trim() : null;
 }
+
+router.get('/config', (req, res) => {
+  const provider = TIDIO_PUBLIC_KEY
+    ? 'tidio'
+    : LUNA_EMBED_URL
+      ? 'luna'
+      : CHATBOT_API_URL
+        ? 'external'
+        : 'local';
+
+  res.json({
+    provider,
+    tidioPublicKey: TIDIO_PUBLIC_KEY || null,
+    lunaEmbedUrl: LUNA_EMBED_URL || null,
+    externalConfigured: Boolean(CHATBOT_API_URL),
+    externalModel: CHATBOT_MODEL || null
+  });
+});
 
 router.post('/message', async (req, res) => {
   const message = String((req.body || {}).message || '').trim().slice(0, 1000);
