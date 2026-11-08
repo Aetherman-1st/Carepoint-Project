@@ -45,8 +45,14 @@ router.get('/', requireAuth, async (req, res) => {
           [req.user.id]
         );
 
+    const zoomCheck = zoom.isConfigured()
+      ? await zoom.checkConnection()
+      : { ok: false, error: 'Zoom credentials are not configured.' };
+
     res.json({
       zoomConfigured: zoom.isConfigured(),
+      zoomReady: zoomCheck.ok,
+      zoomError: admin ? zoomCheck.error : null,
       meetings: result.rows
     });
   } catch (err) {

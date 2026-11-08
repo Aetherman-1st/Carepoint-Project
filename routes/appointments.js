@@ -173,6 +173,7 @@ router.post('/', requireAuth, async (req, res) => {
       } catch (err) {
         zoomStatus = 'failed';
         zoomError = err.message;
+        console.error('Zoom meeting creation failed:', err.message);
         await pool.query(
           'UPDATE appointments SET zoom_status = $1, updated_at = now() WHERE id = $2',
           [zoomStatus, appointmentId]

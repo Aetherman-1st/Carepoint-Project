@@ -186,7 +186,29 @@ async function loadMeetings() {
     if (!response.ok) throw new Error('Failed');
     const data = await response.json();
 
-    zoomNotice.classList.toggle('hidden', data.zoomConfigured !== false);
+    const configured = data.zoomConfigured !== false;
+    const ready = data.zoomReady !== false;
+    zoomNotice.classList.toggle('hidden', configured && ready);
+
+    if (!configured || !ready) {
+      const title = zoomNotice.querySelector('strong');
+      const detail = zoomNotice.querySelector('p');
+      if (!configured) {
+        if (title) title.textContent = 'Zoom is not connected yet.';
+        if (detail) {
+          detail.textContent =
+            'Online appointments are saved now. As soon as the Zoom API keys are added to the server, meeting links will appear here automatically.';
+        }
+      } else {
+        if (title) title.textContent = 'Zoom is configured but not available.';
+        if (detail) {
+          detail.textContent =
+            data.zoomError ||
+            'Zoom could not be reached. Your online appointments are saved; please try again later or contact support.';
+        }
+      }
+    }
+
     renderMeetings(Array.isArray(data.meetings) ? data.meetings : []);
   } catch (err) {
     meetingList.innerHTML = '<div class="empty">Could not load your meetings. Please refresh.</div>';
