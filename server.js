@@ -23,6 +23,7 @@ const clinicRoute = require('./routes/clinic');
 const onboardingRoute = require('./routes/onboarding');
 const profileRoute = require('./routes/profile');
 const meetingsRoute = require('./routes/meetings');
+const passwordChangeRoute = require('./routes/password-change');
 const chatbotRoute = require('./routes/chatbot');
 
 const app = express();
@@ -199,6 +200,7 @@ app.use('/api/clinic', clinicRoute);
 app.use('/api/onboarding', onboardingRoute);
 app.use('/api/profile', profileRoute);
 app.use('/api/meetings', meetingsRoute);
+app.use('/api/password-change', passwordChangeRoute);
 app.use('/api/chatbot', chatbotRoute);
 
 app.use((req, res) => {

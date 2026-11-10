@@ -698,3 +698,72 @@ loadSession().then((user) => {
 });
 loadClinics();
 loadAppointments();
+
+// Reschedule and password change
+(function () {
+  const rescheduleBtn = document.getElementById('rescheduleBtn');
+  const rescheduleModal = document.getElementById('rescheduleModal');
+  const rescheduleModalClose = document.getElementById('rescheduleModalClose');
+  const rescheduleForm = document.getElementById('rescheduleForm');
+  const rescheduleFormCancel = document.getElementById('rescheduleFormCancel');
+  const rescheduleAptId = document.getElementById('rescheduleAptId');
+  const rescheduleDate = document.getElementById('rescheduleDate');
+  const rescheduleTime = document.getElementById('rescheduleTime');
+  const rescheduleReason = document.getElementById('rescheduleReason');
+  const rescheduleVisitType = document.getElementById('rescheduleVisitType');
+
+  function openRescheduleModal(apptId) {
+    rescheduleAptId.value = apptId;
+    const now = new Date();
+    rescheduleDate.min = now.toISOString().split('T')[0];
+    rescheduleDate.value = '';
+    rescheduleTime.value = '';
+    rescheduleReason.value = '';
+    rescheduleVisitType.value = 'in_person';
+    rescheduleModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeRescheduleModal() {
+    rescheduleModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  if (rescheduleBtn && rescheduleModal && rescheduleModalClose && rescheduleForm) {
+    rescheduleBtn.addEventListener('click', () => openRescheduleModal());
+    rescheduleModalClose.addEventListener('click', closeRescheduleModal);
+    rescheduleFormCancel.addEventListener('click', closeRescheduleModal);
+    rescheduleModal.addEventListener('click', (e) => {
+      if (e.target === rescheduleModal) closeRescheduleModal();
+    });
+    rescheduleForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const apptId = rescheduleAptId.value;
+      if (!apptId) return closeRescheduleModal();
+      const payload = {
+        appointment_date: rescheduleDate.value,
+        appointment_time: rescheduleTime.value,
+        reason: rescheduleReason.value.trim() || null,
+        visit_type: rescheduleVisitType.value
+      };
+      try {
+        const resp = await fetch(`/api/appointments/${apptId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          window.alert(data.message || 'Appointment rescheduled.');
+          closeRescheduleModal();
+          loadAppointments();
+        } else {
+          window.alert(data.message || 'Failed to reschedule.');
+        }
+      } catch (err) {
+        window.alert('Error rescheduling appointment.');
+        console.error(err);
+      }
+    });
+  }
+})();

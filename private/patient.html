@@ -191,6 +191,7 @@
             <option value="past">Past</option>
             <option value="cancelled">Cancelled</option>
           </select>
+          <button id="rescheduleBtn" class="btn btn-sm btn-outline" style="margin-top: 8px;">Reschedule appointment</button>
         </div>
         <div class="appointment-list" id="appointmentList" aria-live="polite">
           <div class="appt-item skeleton-appt" aria-hidden="true">
@@ -310,6 +311,40 @@
       </div>
     </div>
   </div>
+
+  <!-- Reschedule modal -->
+<div class="patient-modal-overlay" id="rescheduleModal" role="dialog" aria-modal="true" aria-label="Reschedule appointment">
+  <div class="patient-modal-card">
+    <button type="button" class="btn btn-reset" aria-label="Close" id="rescheduleModalClose">×</button>
+    <h2>Reschedule appointment</h2>
+    <form id="rescheduleForm" novalidate>
+      <input type="hidden" id="rescheduleAptId">
+      <div class="field">
+        <label for="rescheduleDate">Date</label>
+        <input type="date" id="rescheduleDate" required>
+      </div>
+      <div class="field">
+        <label for="rescheduleTime">Time</label>
+        <input type="time" id="rescheduleTime" required>
+      </div>
+      <div class="field">
+        <label for="rescheduleReason">Reason (optional)</label>
+        <textarea id="rescheduleReason" rows="2" maxlength="500"></textarea>
+      </div>
+      <div class="field">
+        <label for="rescheduleVisitType">Visit type</label>
+        <select id="rescheduleVisitType" aria-label="Visit type">
+          <option value="in_person">In-person</option>
+          <option value="online">Online (Zoom)</option>
+        </select>
+      </div>
+      <div class="field">
+        <button type="submit" class="btn btn-primary">Reschedule</button>
+        <button type="button" class="btn btn-outline" id="rescheduleFormCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
 
   <script src="/ui.js"></script>
   <script src="/charts.js"></script>
