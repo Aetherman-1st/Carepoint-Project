@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { requireAuth } = require('../lib/auth');
+const { requireUser } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ function cleanText(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireUser, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT age, conditions, medications, created_at, updated_at FROM onboarding_profiles WHERE user_id = $1',
@@ -20,7 +20,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   const { age, conditions, medications } = req.body || {};
   const parsedAge = Number(age);
 

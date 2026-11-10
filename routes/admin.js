@@ -1,8 +1,10 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const pool = require('../db');
 const { requireAdmin, isAdminEmail } = require('../lib/auth');
 
 const router = express.Router();
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
 
 function userId(value) {
   const id = Number(value);
@@ -12,6 +14,143 @@ function userId(value) {
 function isProtectedAccount(user) {
   return user.role === 'admin' || isAdminEmail(user.email);
 }
+
+
+router.get('/clinics', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.name, c.specialty, c.city, c.is_active,
+              (SELECT count(*)::int FROM appointments a WHERE a.clinic_id = c.id) AS appointment_count,
+              (SELECT count(*)::int FROM doctors d WHERE d.clinic_id = c.id) AS doctor_count,
+              (SELECT count(*)::int FROM users u WHERE u.clinic_id = c.id AND u.role = 'clinic') AS account_count
+       FROM clinics c
+       ORDER BY c.name`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Could not load clinics.' });
+  }
+});
+
+router.get('/clinic-accounts', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.clinic_id, u.created_at,
+              u.last_login_at, u.banned_at, c.name AS clinic_name
+       FROM users u
+       JOIN clinics c ON c.id = u.clinic_id
+       WHERE u.role = 'clinic'
+       ORDER BY c.name, u.email`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Could not load clinic accounts.' });
+  }
+});
+
+router.post('/clinic-accounts', requireAdmin, async (req, res) => {
+  const body = req.body || {};
+  const clinicId = Number(body.clinic_id);
+  const email = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '');
+  const firstName = String(body.first_name || '').trim().slice(0, 80) || 'Clinic';
+  const lastName = String(body.last_name || '').trim().slice(0, 80) || 'Team';
+
+  if (!Number.isInteger(clinicId) || clinicId < 1) {
+    return res.status(400).json({ message: 'Choose a clinic for this account.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ message: 'Enter a valid email address.' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters.' });
+  }
+
+  try {
+    const clinic = await pool.query('SELECT id, name, is_active FROM clinics WHERE id = $1', [clinicId]);
+    if (clinic.rows.length === 0) {
+      return res.status(404).json({ message: 'Clinic not found.' });
+    }
+    if (!clinic.rows[0].is_active) {
+      return res.status(400).json({ message: 'This clinic is inactive.' });
+    }
+
+    const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const result = await pool.query(
+      `INSERT INTO users (first_name, last_name, email, password_hash, role, clinic_id, email_verified_at)
+       VALUES ($1, $2, $3, $4, 'clinic', $5, now())
+       RETURNING id, first_name, last_name, email, role, clinic_id, created_at`,
+      [firstName, lastName, email, hashed, clinicId]
+    );
+
+    res.status(201).json({ message: 'Clinic account created.', account: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'An account with that email already exists.' });
+    }
+    res.status(500).json({ message: 'Could not create the clinic account.' });
+  }
+});
+
+router.put('/clinic-accounts/:id', requireAdmin, async (req, res) => {
+  const id = userId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid account.' });
+
+  const body = req.body || {};
+  const clinicId = Number(body.clinic_id);
+  const email = String(body.email || '').trim().toLowerCase();
+  const firstName = String(body.first_name || '').trim().slice(0, 80) || 'Clinic';
+  const lastName = String(body.last_name || '').trim().slice(0, 80) || 'Team';
+  const password = String(body.password || '');
+
+  if (!Number.isInteger(clinicId) || clinicId < 1) {
+    return res.status(400).json({ message: 'Choose a clinic for this account.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ message: 'Enter a valid email address.' });
+  }
+  if (password && password.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters.' });
+  }
+
+  try {
+    const account = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [id]);
+    if (account.rows.length === 0 || account.rows[0].role !== 'clinic') {
+      return res.status(404).json({ message: 'Clinic account not found.' });
+    }
+    if (isAdminEmail(account.rows[0].email)) {
+      return res.status(400).json({ message: 'This account is protected.' });
+    }
+
+    const clinic = await pool.query('SELECT id, is_active FROM clinics WHERE id = $1', [clinicId]);
+    if (clinic.rows.length === 0 || !clinic.rows[0].is_active) {
+      return res.status(400).json({ message: 'Choose an active clinic.' });
+    }
+
+    const params = [firstName, lastName, email, clinicId, id];
+    let passwordSql = '';
+    if (password) {
+      const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      params.push(hashed);
+      passwordSql = `, password_hash = $${params.length}, session_version = session_version + 1`;
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET first_name = $1, last_name = $2, email = $3, clinic_id = $4${passwordSql}
+       WHERE id = $5
+       RETURNING id, first_name, last_name, email, role, clinic_id`,
+      params
+    );
+
+    res.json({ message: 'Clinic account updated.', account: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'An account with that email already exists.' });
+    }
+    res.status(500).json({ message: 'Could not update the clinic account.' });
+  }
+});
 
 router.get('/users', requireAdmin, async (req, res) => {
   try {

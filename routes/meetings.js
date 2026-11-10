@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { requireAuth, isAdminEmail } = require('../lib/auth');
+const { requireAuth } = require('../lib/auth');
 const zoom = require('../lib/zoom');
 
 const router = express.Router();
@@ -32,7 +32,10 @@ const meetingSelect = `
 `;
 
 router.get('/', requireAuth, async (req, res) => {
-  const admin = isAdminEmail(req.user.email);
+  if (req.user.role === 'clinic') {
+    return res.status(403).json({ message: 'Clinic accounts use the clinic dashboard.' });
+  }
+  const admin = req.user.role === 'admin';
 
   try {
     const result = admin

@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { requireAuth, isAdminEmail } = require('../lib/auth');
+const { requireAuth, requireUser } = require('../lib/auth');
 const zoom = require('../lib/zoom');
 
 const router = express.Router();
@@ -43,7 +43,10 @@ function todayString() {
 }
 
 router.get('/', requireAuth, async (req, res) => {
-  const admin = isAdminEmail(req.user.email);
+  if (req.user.role === 'clinic') {
+    return res.status(403).json({ message: 'Clinic accounts use the clinic dashboard.' });
+  }
+  const admin = req.user.role === 'admin';
   try {
     const result = admin
       ? await pool.query(`${baseSelect} ORDER BY a.appointment_date DESC, a.appointment_time DESC`)
@@ -57,7 +60,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   const { clinic_id, doctor_id, appointment_date, appointment_time, reason, visit_type } = req.body || {};
   const clinicId = Number(clinic_id);
   const doctorId = doctor_id ? Number(doctor_id) : null;
@@ -211,7 +214,10 @@ router.post('/', requireAuth, async (req, res) => {
 router.patch('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   const { status } = req.body || {};
-  const admin = isAdminEmail(req.user.email);
+  if (req.user.role === 'clinic') {
+    return res.status(403).json({ message: 'Clinic accounts use the clinic dashboard.' });
+  }
+  const admin = req.user.role === 'admin';
 
   if (!id || !STATUSES.includes(status)) {
     return res.status(400).json({ message: 'Invalid appointment update.' });

@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db');
-const { requireAuth } = require('../lib/auth');
-const { createSession, sessionCookie } = require('../lib/session');
+const { requireUser } = require('../lib/auth');
+const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
 
 const router = express.Router();
 const MAX_AVATAR_BYTES = 512 * 1024;
@@ -80,7 +80,7 @@ function profileFields(row) {
   };
 }
 
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireUser, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT id, first_name, last_name, email, phone, avatar_url, created_at FROM users WHERE id = $1',
@@ -97,7 +97,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/', requireAuth, async (req, res) => {
+router.put('/', requireUser, async (req, res) => {
   const firstName = cleanText(req.body && req.body.first_name, 80);
   const lastName = cleanText(req.body && req.body.last_name, 80);
   const phone = cleanText(req.body && req.body.phone, 40);
@@ -130,15 +130,27 @@ router.put('/', requireAuth, async (req, res) => {
       return res.status(404).json({ message: 'Your account could not be found.' });
     }
 
-    const token = createSession({
-      id: row.id,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      email: row.email,
-      role: req.user.role
-    });
+    const token = createSession(
+      {
+        id: row.id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        email: row.email,
+        role: req.user.role
+      },
+      {
+        remember: Boolean(req.session && req.session.remember),
+        sessionVersion: req.user.session_version
+      }
+    );
 
-    res.setHeader('Set-Cookie', sessionCookie(token));
+    res.setHeader(
+      'Set-Cookie',
+      sessionCookie(token, {
+        persistent: Boolean(req.session && req.session.remember),
+        secure: requestIsSecure(req)
+      })
+    );
     res.json({ message: 'Profile updated.', profile: profileFields(row) });
   } catch (err) {
     res.status(err.status || 500).json({
