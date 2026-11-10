@@ -167,8 +167,21 @@ form.addEventListener('submit', async (e) => {
 
     const data = await response.json();
 
+    if (data.verificationRequired) {
+      showVerifyStep(data);
+      if (data.emailDeliveryFailed) {
+        codeStatus.textContent =
+          'Your account was created, but the verification email could not be sent. Use Resend code to try again.';
+        codeStatus.className = 'form-status err';
+      }
+      btn.textContent = 'Create account';
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+      return;
+    }
+
     if (!response.ok) {
-      showError(data.message);
+      showError(data.message || 'Could not create your account.');
       btn.textContent = 'Create account';
       btn.disabled = false;
       btn.classList.remove('is-loading');
@@ -176,12 +189,6 @@ form.addEventListener('submit', async (e) => {
     }
 
     btn.classList.remove('is-loading');
-    if (data.verificationRequired) {
-      showVerifyStep(data);
-      btn.textContent = 'Create account';
-      btn.disabled = false;
-      return;
-    }
 
     btn.classList.add('success');
     btn.textContent = 'Account created';

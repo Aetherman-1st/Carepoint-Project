@@ -4,6 +4,7 @@ const pool = require('./db');
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
 
 async function run() {
   await pool.query(`
@@ -29,6 +30,7 @@ async function run() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at timestamptz;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at timestamptz;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
     CREATE TABLE IF NOT EXISTS clinics (
       id serial PRIMARY KEY,
@@ -43,6 +45,7 @@ async function run() {
     );
 
     ALTER TABLE clinics ADD COLUMN IF NOT EXISTS image_url text;
+    ALTER TABLE clinics ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
     ALTER TABLE clinics DROP COLUMN IF EXISTS rating;
     ALTER TABLE clinics
       ALTER COLUMN specialty DROP NOT NULL,
@@ -50,6 +53,11 @@ async function run() {
       ALTER COLUMN city DROP NOT NULL,
       ALTER COLUMN phone DROP NOT NULL,
       ALTER COLUMN description DROP NOT NULL;
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS clinic_id integer REFERENCES clinics(id) ON DELETE SET NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 1;
+    CREATE INDEX IF NOT EXISTS users_role_idx ON users (role);
+    CREATE INDEX IF NOT EXISTS users_clinic_idx ON users (clinic_id);
 
     CREATE TABLE IF NOT EXISTS doctors (
       id serial PRIMARY KEY,
@@ -84,6 +92,13 @@ async function run() {
 
     CREATE INDEX IF NOT EXISTS appointments_date_idx ON appointments (appointment_date);
     CREATE INDEX IF NOT EXISTS appointments_user_idx ON appointments (user_id);
+    CREATE INDEX IF NOT EXISTS appointments_clinic_idx ON appointments (clinic_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS appointments_doctor_slot_active_idx
+      ON appointments (clinic_id, doctor_id, appointment_date, appointment_time)
+      WHERE status IN ('Pending', 'Confirmed') AND doctor_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS appointments_clinic_slot_active_idx
+      ON appointments (clinic_id, appointment_date, appointment_time)
+      WHERE status IN ('Pending', 'Confirmed') AND doctor_id IS NULL;
 
     CREATE TABLE IF NOT EXISTS contact_messages (
       id serial PRIMARY KEY,
@@ -110,6 +125,7 @@ async function run() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
 
+    ALTER TABLE login_codes ADD COLUMN IF NOT EXISTS remember boolean NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS login_codes_user_idx ON login_codes (user_id);
     CREATE INDEX IF NOT EXISTS login_codes_challenge_idx ON login_codes (challenge);
 
@@ -151,6 +167,36 @@ async function run() {
     );
 
     CREATE INDEX IF NOT EXISTS contact_replies_message_idx ON contact_replies (message_id);
+
+    CREATE TABLE IF NOT EXISTS password_reset_codes (
+      id serial PRIMARY KEY,
+      challenge text NOT NULL UNIQUE,
+      user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      code_hash text NOT NULL,
+      expires_at timestamptz NOT NULL,
+      consumed boolean NOT NULL DEFAULT false,
+      attempts integer NOT NULL DEFAULT 0,
+      request_ip text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS password_reset_user_idx ON password_reset_codes (user_id);
+    CREATE INDEX IF NOT EXISTS password_reset_challenge_idx ON password_reset_codes (challenge);
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id serial PRIMARY KEY,
+      actor_id integer REFERENCES users(id) ON DELETE SET NULL,
+      actor_email text,
+      action text NOT NULL,
+      entity_type text,
+      entity_id integer,
+      details jsonb,
+      request_ip text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs (created_at DESC);
+    CREATE INDEX IF NOT EXISTS audit_logs_actor_idx ON audit_logs (actor_id);
   `);
 
   if (ADMIN_EMAIL) {
@@ -163,7 +209,7 @@ async function run() {
       );
       console.log(`Admin access reserved for ${ADMIN_EMAIL}.`);
     } else if (ADMIN_PASSWORD.length >= 8) {
-      const hashed = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      const hashed = await bcrypt.hash(ADMIN_PASSWORD, BCRYPT_ROUNDS);
       await pool.query(
         'INSERT INTO users (email, password_hash, role, email_verified_at) VALUES ($1, $2, $3, now())',
         [ADMIN_EMAIL, hashed, 'admin']

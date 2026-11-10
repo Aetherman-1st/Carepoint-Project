@@ -2,8 +2,8 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
-const { createSession, sessionCookie } = require('../lib/session');
-const { isAdminEmail } = require('../lib/auth');
+const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
+const { isAdminEmail, roleHome } = require('../lib/auth');
 const { sendLoginCode } = require('../lib/mailer');
 
 const router = express.Router();
@@ -12,12 +12,14 @@ const CODE_MINUTES = Number(process.env.TWO_FACTOR_CODE_MINUTES) || 10;
 const MAX_ATTEMPTS = 5;
 const MAX_CODES_PER_WINDOW = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 function requestIp(req) {
   return req.headers['x-forwarded-for'] || req.ip || null;
 }
 
-async function issueCode(user, req) {
+async function issueCode(user, req, remember = false) {
   const windowCount = await pool.query(
     `SELECT count(*)::int AS count FROM login_codes
      WHERE user_id = $1 AND created_at > now() - interval '10 minutes'`,
@@ -36,14 +38,14 @@ async function issueCode(user, req) {
 
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const challenge = crypto.randomBytes(24).toString('hex');
-  const codeHash = await bcrypt.hash(code, 10);
+  const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
   const expiresAt = new Date(Date.now() + CODE_MINUTES * 60 * 1000);
 
   const inserted = await pool.query(
-    `INSERT INTO login_codes (challenge, user_id, code_hash, expires_at, request_ip)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO login_codes (challenge, user_id, code_hash, expires_at, request_ip, remember)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id`,
-    [challenge, user.id, codeHash, expiresAt, requestIp(req)]
+    [challenge, user.id, codeHash, expiresAt, requestIp(req), Boolean(remember)]
   );
 
   try {
@@ -67,18 +69,23 @@ async function issueCode(user, req) {
       minutes: CODE_MINUTES
     };
   } catch (err) {
+    console.error('Login email delivery failed:', err.message);
     await pool.query('UPDATE login_codes SET delivery_error = $1 WHERE id = $2', [
       String(err.message).slice(0, 500),
       inserted.rows[0].id
     ]);
-    const error = new Error('We could not send the verification email. Please try again.');
-    error.status = 502;
-    throw error;
+    return {
+      challenge,
+      code,
+      delivered: false,
+      mode: 'error',
+      minutes: CODE_MINUTES
+    };
   }
 }
 
 router.post('/', async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, remember } = req.body || {};
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
@@ -90,39 +97,55 @@ router.post('/', async (req, res) => {
     ]);
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ message: 'Incorrect email or password' });
+      return res.status(404).json({
+        code: 'email_not_found',
+        message: 'No CarePoint account was found for this email. Check the spelling or create an account.'
+      });
     }
 
     const user = result.rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) {
-      return res.status(401).json({ message: 'Incorrect email or password' });
+      return res.status(401).json({
+        code: 'wrong_password',
+        message: 'The password you entered is incorrect. Please try again.'
+      });
     }
 
     if (user.banned_at) {
       return res.status(403).json({
+        code: 'account_banned',
         message: 'This account has been banned. Contact the CarePoint team if you believe this is a mistake.'
       });
     }
 
     if (!user.email_verified_at) {
       return res.status(403).json({
-        message: 'Please verify your email before logging in. Return to Create account to resend the verification code.'
+        code: 'email_not_verified',
+        canResendVerification: true,
+        email: user.email,
+        message: 'Your email address is not verified yet. Resend the verification code to continue.'
       });
     }
 
-    const issued = await issueCode(user, req);
+    const issued = await issueCode(user, req, Boolean(remember));
+    const failed = issued.mode === 'error';
 
-    res.json({
-      twoFactorRequired: true,
+    res.status(failed ? 502 : 200).json({
+      twoFactorRequired: !failed,
+      verificationRequired: false,
       challenge: issued.challenge,
       email: user.email,
-      message: issued.delivered
-        ? `We sent a 6-digit code to ${user.email}.`
-        : 'Email delivery is not configured. Use the development code provided.',
+      message: failed
+        ? 'We could not send the verification email. Please try again shortly.'
+        : issued.delivered
+          ? `We sent a 6-digit code to ${user.email}.`
+          : 'Email delivery is not configured. Use the development code provided.',
       emailDelivered: issued.delivered,
-      devCode: issued.delivered ? undefined : issued.code,
+      emailDeliveryFailed: failed,
+      canResend: true,
+      devCode: !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined,
       expiresInMinutes: issued.minutes
     });
   } catch (err) {
@@ -141,7 +164,8 @@ router.post('/verify', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT lc.*, u.first_name, u.last_name, u.email, u.role, u.banned_at
+      `SELECT lc.*, u.first_name, u.last_name, u.email, u.role, u.clinic_id,
+              u.session_version, u.banned_at
        FROM login_codes lc
        JOIN users u ON u.id = lc.user_id
        WHERE lc.challenge = $1`,
@@ -197,29 +221,36 @@ router.post('/verify', async (req, res) => {
       record.user_id
     ]);
 
-    const admin = isAdminEmail(record.email);
-    const role = admin ? 'admin' : record.role || 'user';
-    const token = createSession({
-      id: record.user_id,
-      first_name: record.first_name,
-      last_name: record.last_name,
-      email: record.email,
-      role
-    });
-
-    res.setHeader('Set-Cookie', sessionCookie(token));
-    res.json({
-      message: 'Login successful',
-      redirect: admin ? '/admin' : '/patient',
-      user: {
+    const role = isAdminEmail(record.email) ? 'admin' : record.role || 'user';
+    const token = createSession(
+      {
         id: record.user_id,
         first_name: record.first_name,
         last_name: record.last_name,
         email: record.email,
         role
+      },
+      { remember: Boolean(record.remember), sessionVersion: record.session_version }
+    );
+
+    res.setHeader(
+      'Set-Cookie',
+      sessionCookie(token, { persistent: Boolean(record.remember), secure: requestIsSecure(req) })
+    );
+    res.json({
+      message: 'Login successful',
+      redirect: roleHome(role),
+      user: {
+        id: record.user_id,
+        first_name: record.first_name,
+        last_name: record.last_name,
+        email: record.email,
+        role,
+        clinic_id: record.clinic_id || null
       }
     });
   } catch (err) {
+    console.error('Login verification failed:', err.message);
     res.status(500).json({ message: 'Something went wrong' });
   }
 });
@@ -270,13 +301,19 @@ router.post('/resend', async (req, res) => {
       role: record.role
     };
 
-    const issued = await issueCode(user, req);
+    const issued = await issueCode(user, req, Boolean(record.remember));
+    const failed = issued.mode === 'error';
 
-    res.json({
-      message: issued.delivered ? 'A new code was sent.' : 'A new development code was created.',
+    res.status(failed ? 502 : 200).json({
+      message: failed
+        ? 'We could not send the verification email. Please try again shortly.'
+        : issued.delivered
+          ? 'A new code was sent.'
+          : 'A new development code was created.',
       challenge: issued.challenge,
       emailDelivered: issued.delivered,
-      devCode: issued.delivered ? undefined : issued.code,
+      emailDeliveryFailed: failed,
+      devCode: !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined,
       expiresInMinutes: issued.minutes
     });
   } catch (err) {

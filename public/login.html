@@ -60,8 +60,14 @@
               <button type="button" id="toggleBtn">Show</button>
             </div>
           </div>
+          <label class="check-row" for="rememberMe">
+            <input type="checkbox" id="rememberMe">
+            <span>Remember me for 30 days</span>
+          </label>
           <p id="error" class="auth-error" role="alert"></p>
+          <button type="button" id="resendVerificationBtn" class="link-btn hidden">Resend verification code</button>
           <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
+          <p class="auth-alt auth-forgot"><a href="/forgot-password">Forgot your password?</a></p>
         </form>
 
         <form id="twoFactorForm" class="auth-form hidden" novalidate>

@@ -3,8 +3,8 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const { sendSignupCode } = require('../lib/mailer');
-const { createSession, sessionCookie } = require('../lib/session');
-const { isAdminEmail } = require('../lib/auth');
+const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
+const { isAdminEmail, roleHome } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -12,6 +12,8 @@ const CODE_MINUTES = Number(process.env.TWO_FACTOR_CODE_MINUTES) || 10;
 const MAX_ATTEMPTS = 5;
 const MAX_CODES_PER_WINDOW = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 function requestIp(req) {
   return req.headers['x-forwarded-for'] || req.ip || null;
@@ -36,7 +38,7 @@ async function issueCode(user, req) {
 
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const challenge = crypto.randomBytes(24).toString('hex');
-  const codeHash = await bcrypt.hash(code, 10);
+  const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
   const expiresAt = new Date(Date.now() + CODE_MINUTES * 60 * 1000);
 
   const inserted = await pool.query(
@@ -54,9 +56,10 @@ async function issueCode(user, req) {
       minutes: CODE_MINUTES
     });
 
-    await pool.query('UPDATE signup_codes SET sent = true, sent_at = now() WHERE id = $1', [
-      inserted.rows[0].id
-    ]);
+    await pool.query(
+      'UPDATE signup_codes SET sent = true, sent_at = now() WHERE id = $1',
+      [inserted.rows[0].id]
+    );
 
     return {
       challenge,
@@ -66,26 +69,38 @@ async function issueCode(user, req) {
       minutes: CODE_MINUTES
     };
   } catch (err) {
+    console.error('Signup email delivery failed:', err.message);
     await pool.query('UPDATE signup_codes SET delivery_error = $1 WHERE id = $2', [
       String(err.message).slice(0, 500),
       inserted.rows[0].id
     ]);
-    const error = new Error('We could not send the verification email. Please try again.');
-    error.status = 502;
-    throw error;
+    return {
+      challenge,
+      code,
+      delivered: false,
+      mode: 'error',
+      minutes: CODE_MINUTES
+    };
   }
 }
 
 function verificationResponse(user, issued, statusCode, res) {
-  res.status(statusCode).json({
-    message: issued.delivered
-      ? `We sent a 6-digit code to ${user.email}.`
-      : 'Email delivery is not configured. Use the development code provided.',
+  const failed = issued.mode === 'error';
+  const devCode = !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined;
+
+  res.status(failed ? 502 : statusCode).json({
+    message: failed
+      ? 'Your account was created, but we could not send the verification email. You can retry sending it.'
+      : issued.delivered
+        ? `We sent a 6-digit code to ${user.email}.`
+        : 'Email delivery is not configured. Use the development code provided.',
     verificationRequired: true,
     challenge: issued.challenge,
     email: user.email,
     emailDelivered: issued.delivered,
-    devCode: issued.delivered ? undefined : issued.code,
+    emailDeliveryFailed: failed,
+    canResend: true,
+    devCode,
     expiresInMinutes: issued.minutes
   });
 }
@@ -130,18 +145,19 @@ router.post('/', async (req, res) => {
       return verificationResponse(existing, issued, 200, res);
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const created = await pool.query(
       `INSERT INTO users (first_name, last_name, email, password_hash)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, first_name, last_name, email, role`,
+       RETURNING id, first_name, last_name, email, role, session_version`,
       [cleanFirst, cleanLast, cleanEmail, hashed]
     );
 
     const issued = await issueCode(created.rows[0], req);
     verificationResponse(created.rows[0], issued, 201, res);
   } catch (err) {
+    console.error('Signup failed:', err.message);
     res.status(err.status || 500).json({
       message: err.status ? err.message : 'Something went wrong'
     });
@@ -163,7 +179,10 @@ router.post('/verify', async (req, res) => {
     }
 
     const record = result.rows[0];
-    const account = await pool.query('SELECT banned_at FROM users WHERE id = $1', [record.user_id]);
+    const account = await pool.query(
+      'SELECT banned_at, session_version, role, clinic_id FROM users WHERE id = $1',
+      [record.user_id]
+    );
 
     if (account.rows.length === 0) {
       return res.status(400).json({ message: 'This account no longer exists.' });
@@ -211,7 +230,7 @@ router.post('/verify', async (req, res) => {
       `UPDATE users
        SET email_verified_at = now(), last_login_at = now(), last_login_ip = $1
        WHERE id = $2
-       RETURNING id, first_name, last_name, email, role, onboarding_completed_at`,
+       RETURNING id, first_name, last_name, email, role, clinic_id, session_version, onboarding_completed_at`,
       [requestIp(req), record.user_id]
     );
 
@@ -220,32 +239,39 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ message: 'This account no longer exists.' });
     }
 
-    const admin = isAdminEmail(user.email);
-    const role = admin ? 'admin' : user.role || 'user';
-    const token = createSession({
-      id: user.id,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      email: user.email,
-      role
-    });
+    const role = isAdminEmail(user.email) ? 'admin' : user.role || 'user';
+    const token = createSession(
+      {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role
+      },
+      { remember: false, sessionVersion: user.session_version }
+    );
 
-    const needsOnboarding = !admin && !user.onboarding_completed_at;
+    const needsOnboarding = role === 'user' && !user.onboarding_completed_at;
 
-    res.setHeader('Set-Cookie', sessionCookie(token));
+    res.setHeader(
+      'Set-Cookie',
+      sessionCookie(token, { persistent: false, secure: requestIsSecure(req) })
+    );
     res.json({
       message: 'Email verified',
-      redirect: admin ? '/admin' : needsOnboarding ? '/patient?onboarding=1' : '/patient',
+      redirect: needsOnboarding ? '/patient?onboarding=1' : roleHome(role),
       needsOnboarding,
       user: {
         id: user.id,
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        role
+        role,
+        clinic_id: user.clinic_id || null
       }
     });
   } catch (err) {
+    console.error('Signup verification failed:', err.message);
     res.status(500).json({ message: 'Something went wrong' });
   }
 });
@@ -295,14 +321,59 @@ router.post('/resend', async (req, res) => {
     };
 
     const issued = await issueCode(user, req);
+    const failed = issued.mode === 'error';
 
-    res.json({
-      message: issued.delivered ? 'A new code was sent.' : 'A new development code was created.',
+    res.status(failed ? 502 : 200).json({
+      message: failed
+        ? 'We could not send the verification email. Please try again shortly.'
+        : issued.delivered
+          ? 'A new code was sent.'
+          : 'A new development code was created.',
       challenge: issued.challenge,
       emailDelivered: issued.delivered,
-      devCode: issued.delivered ? undefined : issued.code,
+      emailDeliveryFailed: failed,
+      devCode: !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined,
       expiresInMinutes: issued.minutes
     });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      message: err.status ? err.message : 'Something went wrong'
+    });
+  }
+});
+
+router.post('/resend-verification', async (req, res) => {
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE lower(email) = lower($1)', [
+      String(email).trim()
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No account was found for this email.' });
+    }
+
+    const user = result.rows[0];
+    const matches = await bcrypt.compare(String(password), user.password_hash);
+    if (!matches) {
+      return res.status(401).json({ message: 'The password you entered is incorrect.' });
+    }
+
+    if (user.email_verified_at) {
+      return res.status(400).json({ message: 'This email is already verified. You can log in now.' });
+    }
+
+    if (user.banned_at) {
+      return res.status(403).json({ message: 'This account has been banned.' });
+    }
+
+    const issued = await issueCode(user, req);
+    verificationResponse(user, issued, 200, res);
   } catch (err) {
     res.status(err.status || 500).json({
       message: err.status ? err.message : 'Something went wrong'

@@ -2,9 +2,11 @@ const loginForm = document.getElementById('loginForm');
 const twoFactorForm = document.getElementById('twoFactorForm');
 const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
+const rememberInput = document.getElementById('rememberMe');
 const error = document.getElementById('error');
 const btn = document.getElementById('loginBtn');
 const toggleBtn = document.getElementById('toggleBtn');
+const resendVerificationBtn = document.getElementById('resendVerificationBtn');
 
 const codeInput = document.getElementById('codeInput');
 const codeSent = document.getElementById('codeSent');
@@ -25,6 +27,8 @@ const accountStatus = params.get('account');
 
 let challenge = null;
 let resendInterval = null;
+let verifyEndpoint = '/login/verify';
+let pendingCredentials = null;
 
 function showError(message) {
   error.textContent = message;
@@ -35,6 +39,7 @@ function showError(message) {
 function clearError() {
   error.classList.remove('show');
   error.textContent = '';
+  resendVerificationBtn.classList.add('hidden');
 }
 
 function showCodeError(message) {
@@ -55,7 +60,13 @@ function goToDashboard(user, redirect) {
     window.location.href = '/admin';
     return;
   }
-  window.location.href = safeNext || redirect || '/patient';
+  if (user && user.role === 'clinic') {
+    window.location.href = '/clinic';
+    return;
+  }
+  const safePatientNext =
+    safeNext && /^\/(patient|profile|meetings)(\/|$|\?)/.test(safeNext) ? safeNext : null;
+  window.location.href = safePatientNext || redirect || '/patient';
 }
 
 async function redirectIfLoggedIn() {
@@ -98,8 +109,9 @@ function startResendCooldown(seconds) {
   }, 1000);
 }
 
-function showCodeStep(data) {
+function showCodeStep(data, endpoint) {
   challenge = data.challenge;
+  verifyEndpoint = endpoint || '/login/verify';
   codeSent.textContent = data.emailDelivered
     ? `A 6-digit code was sent to ${data.email}.`
     : `Email delivery is not configured. Use the development code below for ${data.email}.`;
@@ -111,15 +123,19 @@ function showCodeStep(data) {
   twoFactorForm.classList.remove('hidden');
   authAlt.classList.add('hidden');
   authTitle.textContent = data.emailDelivered ? 'Check your email' : 'Enter your code';
-  authSubtitle.textContent = data.emailDelivered
-    ? 'Enter the 6-digit code to finish logging in.'
-    : 'Use the development code below to finish logging in.';
+  authSubtitle.textContent =
+    verifyEndpoint === '/signup/verify'
+      ? 'Enter the 6-digit code to verify your email and continue.'
+      : data.emailDelivered
+        ? 'Enter the 6-digit code to finish logging in.'
+        : 'Use the development code below to finish logging in.';
   startResendCooldown(60);
   codeInput.focus();
 }
 
 function showCredentialsStep() {
   challenge = null;
+  verifyEndpoint = '/login/verify';
   if (resendInterval) {
     clearInterval(resendInterval);
     resendInterval = null;
@@ -144,6 +160,8 @@ window.addEventListener('load', () => {
     showError('This account has been banned. Contact the CarePoint team if you believe this is a mistake.');
   } else if (accountStatus === 'deleted') {
     showError('This account no longer exists.');
+  } else if (accountStatus === 'session_expired') {
+    showError('Your session expired. Please log in again.');
   }
 });
 
@@ -182,6 +200,7 @@ loginForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  pendingCredentials = { email, password };
   btn.textContent = 'Checking...';
   btn.disabled = true;
   btn.classList.add('is-loading');
@@ -190,13 +209,16 @@ loginForm.addEventListener('submit', async (e) => {
     const response = await fetch('/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, remember: rememberInput.checked })
     });
 
     const data = await response.json();
 
     if (!response.ok) {
       showError(data.message || 'Could not log in');
+      if (data.canResendVerification) {
+        resendVerificationBtn.classList.remove('hidden');
+      }
       btn.textContent = 'Log in';
       btn.disabled = false;
       btn.classList.remove('is-loading');
@@ -208,7 +230,7 @@ loginForm.addEventListener('submit', async (e) => {
     btn.classList.remove('is-loading');
 
     if (data.twoFactorRequired) {
-      showCodeStep(data);
+      showCodeStep(data, '/login/verify');
       return;
     }
 
@@ -218,6 +240,37 @@ loginForm.addEventListener('submit', async (e) => {
     btn.textContent = 'Log in';
     btn.disabled = false;
     btn.classList.remove('is-loading');
+  }
+});
+
+resendVerificationBtn.addEventListener('click', async () => {
+  if (!pendingCredentials) return;
+
+  resendVerificationBtn.disabled = true;
+  resendVerificationBtn.textContent = 'Sending verification code...';
+  clearError();
+
+  try {
+    const response = await fetch('/signup/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pendingCredentials)
+    });
+    const data = await response.json();
+
+    if (!response.ok && !data.verificationRequired) {
+      showError(data.message || 'Could not resend the verification code.');
+      return;
+    }
+
+    if (data.verificationRequired) {
+      showCodeStep(data, '/signup/verify');
+    }
+  } catch (err) {
+    showError('Could not resend the verification code. Please try again.');
+  } finally {
+    resendVerificationBtn.disabled = false;
+    resendVerificationBtn.textContent = 'Resend verification code';
   }
 });
 
@@ -237,7 +290,7 @@ twoFactorForm.addEventListener('submit', async (e) => {
   verifyBtn.classList.add('is-loading');
 
   try {
-    const response = await fetch('/login/verify', {
+    const response = await fetch(verifyEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ challenge, code })
@@ -273,8 +326,10 @@ resendBtn.addEventListener('click', async () => {
   resendBtn.disabled = true;
   resendBtn.textContent = 'Sending...';
 
+  const endpoint = verifyEndpoint === '/signup/verify' ? '/signup/resend' : '/login/resend';
+
   try {
-    const response = await fetch('/login/resend', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ challenge })
