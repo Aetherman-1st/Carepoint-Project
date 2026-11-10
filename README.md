@@ -449,6 +449,22 @@ ALTER USER loginpage WITH PASSWORD 'new-password';
 - Set `ADMIN_EMAIL` and an `ADMIN_PASSWORD` of at least 8 characters in `.env`.
 - Run `npm run setup` again.
 
+## Deployment
+
+### Quick start with Cloudflare Tunnel
+
+1. Make sure your local server is running on the port defined in `.env` (default `PORT=3000`).
+2. Install `cloudflared` if not already present (download from https://developers.cloudflare.com/cloudflared/).
+3. Run the tunnel: `cloudflared tunnel --url http://localhost:3000`.
+4. The terminal will output a URL like `https://abc123.cloudflared.net`. Share this URL; it routes traffic to your local CarePoint instance.
+
+### Production considerations
+
+- Set `EMAIL_TRANSPORT=smtp` and verify a domain at Resend (`MAIL_FROM` must match a verified sender).
+- Set `SESSION_SECRET` to a strong random string.
+- Ensure `ADMIN_EMAIL` is set to the protected admin address.
+- Run `npm audit` before deploying.
+- Keep `.env` out of version control (already git‑ignored).
 ## License
 
 ISC

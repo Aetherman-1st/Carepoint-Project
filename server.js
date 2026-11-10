@@ -1,7 +1,14 @@
 require('dotenv').config();
 const path = require('path');
+const helmet = require('helmet');
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const pool = require('./db');
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+});
 
 const {
   attachUser,
@@ -32,6 +39,8 @@ const privateDir = path.join(__dirname, 'private');
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
+app.use(helmet());
+app.use(limiter);
 app.use(attachUser);
 
 app.get('/api/session', async (req, res) => {
