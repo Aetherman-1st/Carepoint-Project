@@ -299,3 +299,120 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+router.get('/doctors', requireAdmin, async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 50;
+    const offset = Number(req.query.offset) || 0;
+    const clinicId = req.query.clinic_id ? Number(req.query.clinic_id) : null;
+
+    let query = `
+      SELECT d.id, d.clinic_id, d.name, d.specialty,
+             (SELECT count(*)::int FROM appointments a WHERE a.doctor_id = d.id) AS appointment_count
+      FROM doctors d
+    `;
+    const params = [limit, offset];
+    if (clinicId !== null) {
+      query += ` WHERE d.clinic_id = $${params.length + 1}`;
+      params.push(clinicId);
+    }
+    query += ` ORDER BY d.name LIMIT $1 OFFSET $2`;
+    const result = await pool.query(query, params);
+
+    let countQuery = `SELECT count(*)::int AS total FROM doctors`;
+    const countParams = [];
+    if (clinicId !== null) {
+      countQuery += ` WHERE clinic_id = $1`;
+      countParams.push(clinicId);
+    }
+    const countResult = await pool.query(countQuery, countParams);
+
+    res.json({ rows: result.rows, total: countResult.rows[0].total });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not load doctors.' });
+  }
+});
+
+router.post('/doctors', requireAdmin, async (req, res) => {
+  const body = req.body || {};
+  const clinicId = Number(body.clinic_id);
+  const name = String(body.name || '').trim().slice(0, 100);
+  const specialty = String(body.specialty || '').trim().slice(0, 80) || 'General';
+
+  if (!Number.isInteger(clinicId) || clinicId < 1) {
+    return res.status(400).json({ message: 'Choose a clinic for this doctor.' });
+  }
+  if (!name) {
+    return res.status(400).json({ message: 'Enter a doctor name.' });
+  }
+
+  try {
+    const clinic = await pool.query('SELECT id, is_active FROM clinics WHERE id = $1', [clinicId]);
+    if (clinic.rows.length === 0) {
+      return res.status(404).json({ message: 'Clinic not found.' });
+    }
+    if (!clinic.rows[0].is_active) {
+      return res.status(400).json({ message: 'This clinic is inactive.' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO doctors (clinic_id, name, specialty) VALUES ($1, $2, $3) RETURNING id, clinic_id, name, specialty`,
+      [clinicId, name, specialty]
+    );
+
+    res.status(201).json({ message: 'Doctor added.', doctor: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not add the doctor.' });
+  }
+});
+
+router.put('/doctors/:id', requireAdmin, async (req, res) => {
+  const id = userId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid doctor.' });
+
+  const body = req.body || {};
+  const name = String(body.name || '').trim().slice(0, 100);
+  const specialty = String(body.specialty || '').trim().slice(0, 80);
+
+  if (!name) {
+    return res.status(400).json({ message: 'Enter a doctor name.' });
+  }
+
+  try {
+    const doctor = await pool.query('SELECT id, clinic_id FROM doctors WHERE id = $1', [id]);
+    if (doctor.rows.length === 0) {
+      return res.status(404).json({ message: 'Doctor not found.' });
+    }
+
+    const updateQuery = `UPDATE doctors SET name = $1, specialty = $2 WHERE id = $3 RETURNING id, clinic_id, name, specialty`;
+    const result = await pool.query(updateQuery, [name, specialty, id]);
+
+    res.json({ message: 'Doctor updated.', doctor: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not update the doctor.' });
+  }
+});
+
+router.delete('/doctors/:id', requireAdmin, async (req, res) => {
+  const id = userId(req.params.id);
+  if (!id) return res.status(400).json({ message: 'Invalid doctor.' });
+
+  try {
+    const doctor = await pool.query('SELECT id, clinic_id FROM doctors WHERE id = $1', [id]);
+    if (doctor.rows.length === 0) {
+      return res.status(404).json({ message: 'Doctor not found.' });
+    }
+
+    const appointments = await pool.query(
+      `SELECT count(*)::int AS cnt FROM appointments WHERE doctor_id = $1`,
+      [id]
+    );
+    if (appointments.rows[0].cnt > 0) {
+      return res.status(409).json({ message: 'Cannot delete doctor because appointments exist. Reassign or deactivate instead.' });
+    }
+
+    await pool.query('DELETE FROM doctors WHERE id = $1', [id]);
+    res.json({ message: 'Doctor deleted.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not delete the doctor.' });
+  }
+});
