@@ -19,7 +19,11 @@ const RETRYABLE_CODES = new Set([
 const MAX_RETRIES = Number(process.env.DB_MAX_RETRIES) || 3;
 const RETRY_DELAY_MS = Number(process.env.DB_RETRY_DELAY_MS) || 250;
 
-const pool = new Pool({
+const useSsl = ['1', 'true', 'yes', 'require'].includes(
+  String(process.env.DB_SSL || '').toLowerCase()
+);
+
+const poolConfig = {
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT) || 5432,
   user: process.env.DB_USER,
@@ -29,7 +33,13 @@ const pool = new Pool({
   idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
   connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS) || 5000,
   keepAlive: true
-});
+};
+
+if (useSsl) {
+  poolConfig.ssl = { rejectUnauthorized: false };
+}
+
+const pool = new Pool(poolConfig);
 
 pool.on('error', (err) => {
   console.error('Unexpected PostgreSQL pool error:', err.message);
