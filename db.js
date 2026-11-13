@@ -1,5 +1,4 @@
-require('dotenv').config();
-const { Pool } = require('pg');
+const { Pool, Client } = require('pg');
 
 const RETRYABLE_CODES = new Set([
   'ECONNREFUSED',
@@ -23,12 +22,18 @@ const useSsl = ['1', 'true', 'yes', 'require'].includes(
   String(process.env.DB_SSL || '').toLowerCase()
 );
 
-const poolConfig = {
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+const connectionString = process.env.DATABASE_URL;
+
+const baseConfig = {
+  ...(connectionString
+    ? { connectionString }
+    : {
+        host: process.env.DB_HOST,
+        port: Number(process.env.DB_PORT) || 5432,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME
+      }),
   max: Number(process.env.DB_POOL_MAX) || 10,
   idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
   connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS) || 5000,
@@ -36,14 +41,8 @@ const poolConfig = {
 };
 
 if (useSsl) {
-  poolConfig.ssl = { rejectUnauthorized: false };
+  baseConfig.ssl = { rejectUnauthorized: false };
 }
-
-const pool = new Pool(poolConfig);
-
-pool.on('error', (err) => {
-  console.error('Unexpected PostgreSQL pool error:', err.message);
-});
 
 function isRetryable(err) {
   if (!err) return false;
@@ -57,18 +56,12 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const originalQuery = pool.query.bind(pool);
-
-pool.query = async function queryWithRetry(...args) {
-  if (typeof args[args.length - 1] === 'function') {
-    return originalQuery(...args);
-  }
-
+async function retryQuery(runQuery) {
   let lastError;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     try {
-      return await originalQuery(...args);
+      return await runQuery();
     } catch (err) {
       lastError = err;
       if (!isRetryable(err) || attempt === MAX_RETRIES) {
@@ -82,6 +75,38 @@ pool.query = async function queryWithRetry(...args) {
   }
 
   throw lastError;
-};
+}
 
-module.exports = pool;
+if (process.env.CF_WORKER === '1') {
+  module.exports = {
+    query(text, params) {
+      return retryQuery(async () => {
+        const client = new Client(baseConfig);
+        try {
+          await client.connect();
+          return await client.query(text, params);
+        } finally {
+          await client.end().catch(() => {});
+        }
+      });
+    }
+  };
+} else {
+  const pool = new Pool(baseConfig);
+
+  pool.on('error', (err) => {
+    console.error('Unexpected PostgreSQL pool error:', err.message);
+  });
+
+  const originalQuery = pool.query.bind(pool);
+
+  pool.query = async function queryWithRetry(...args) {
+    if (typeof args[args.length - 1] === 'function') {
+      return originalQuery(...args);
+    }
+
+    return retryQuery(() => originalQuery(...args));
+  };
+
+  module.exports = pool;
+}

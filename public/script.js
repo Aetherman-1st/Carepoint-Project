@@ -13,7 +13,6 @@ const codeSent = document.getElementById('codeSent');
 const authAlt = document.getElementById('authAlt');
 const codeError = document.getElementById('codeError');
 const codeStatus = document.getElementById('codeStatus');
-const devCodeNote = document.getElementById('devCodeNote');
 const verifyBtn = document.getElementById('verifyBtn');
 const resendBtn = document.getElementById('resendBtn');
 const backBtn = document.getElementById('backBtn');
@@ -56,10 +55,6 @@ function clearCodeMessages() {
 }
 
 function goToDashboard(user, redirect) {
-  if (user && user.role === 'admin') {
-    window.location.href = '/admin';
-    return;
-  }
   if (user && user.role === 'clinic') {
     window.location.href = '/clinic';
     return;
@@ -76,16 +71,6 @@ async function redirectIfLoggedIn() {
     if (data.user) goToDashboard(data.user);
   } catch (err) {
     return;
-  }
-}
-
-function renderDevCode(code) {
-  if (code) {
-    devCodeNote.classList.remove('hidden');
-    devCodeNote.textContent = `Development mode: your verification code is ${code}. Add SMTP details in .env to send real emails.`;
-  } else {
-    devCodeNote.classList.add('hidden');
-    devCodeNote.textContent = '';
   }
 }
 
@@ -112,23 +97,18 @@ function startResendCooldown(seconds) {
 function showCodeStep(data, endpoint) {
   challenge = data.challenge;
   verifyEndpoint = endpoint || '/login/verify';
-  codeSent.textContent = data.emailDelivered
-    ? `A 6-digit code was sent to ${data.email}.`
-    : `Email delivery is not configured. Use the development code below for ${data.email}.`;
+  codeSent.textContent = 'A 6-digit code was sent to your email. Check your inbox.';
   codeInput.value = '';
   clearCodeMessages();
-  renderDevCode(data.devCode);
 
   loginForm.classList.add('hidden');
   twoFactorForm.classList.remove('hidden');
   authAlt.classList.add('hidden');
-  authTitle.textContent = data.emailDelivered ? 'Check your email' : 'Enter your code';
+  authTitle.textContent = 'Check your email';
   authSubtitle.textContent =
     verifyEndpoint === '/signup/verify'
       ? 'Enter the 6-digit code to verify your email and continue.'
-      : data.emailDelivered
-        ? 'Enter the 6-digit code to finish logging in.'
-        : 'Use the development code below to finish logging in.';
+      : 'Enter the 6-digit code to finish logging in.';
   startResendCooldown(60);
   codeInput.focus();
 }
@@ -143,7 +123,6 @@ function showCredentialsStep() {
   resendBtn.disabled = false;
   resendBtn.textContent = 'Resend code';
   clearCodeMessages();
-  renderDevCode(null);
 
   twoFactorForm.classList.add('hidden');
   loginForm.classList.remove('hidden');
@@ -344,10 +323,9 @@ resendBtn.addEventListener('click', async () => {
     }
 
     challenge = data.challenge;
-    renderDevCode(data.devCode);
     codeStatus.textContent = data.emailDelivered
-      ? 'A new code was sent.'
-      : 'A new development code was created.';
+      ? 'A new code was sent. Check your inbox.'
+      : 'We could not send the code. Please try again.';
     codeStatus.className = 'form-status ok';
     codeInput.value = '';
     codeInput.focus();

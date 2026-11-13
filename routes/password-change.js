@@ -1,9 +1,11 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const pool = require('../db');
 const { requireAuth } = require('../lib/auth');
+const { hashPassword, verifyPassword } = require('../lib/password');
+const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
 
 const router = express.Router();
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
 
 router.post('/', requireAuth, async (req, res) => {
   const { oldPassword, newPassword } = req.body || {};
@@ -17,22 +19,46 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
-    const user = req.user;
+    const current = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (current.rows.length === 0) {
+      return res.status(401).json({ message: 'Please log in to continue.' });
+    }
 
-    const match = await bcrypt.compare(oldPassword, user.password_hash);
+    const match = await verifyPassword(oldPassword, current.rows[0].password_hash);
     if (!match) {
       return res.status(401).json({ message: 'Old password is incorrect.' });
     }
 
-    const hashed = await bcrypt.hash(newPassword, 12);
+    const hashed = await hashPassword(newPassword, BCRYPT_ROUNDS);
 
-    await pool.query(
+    const updated = await pool.query(
       `UPDATE users
        SET password_hash = $1,
            session_version = session_version + 1,
            updated_at = now()
-       WHERE id = $2`,
-      [hashed, user.id]
+       WHERE id = $2
+       RETURNING id, first_name, last_name, email, role, clinic_id, session_version`,
+      [hashed, req.user.id]
+    );
+
+    const user = updated.rows[0];
+    const token = createSession(
+      {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role: user.role
+      },
+      { remember: Boolean(req.session && req.session.remember), sessionVersion: user.session_version }
+    );
+
+    res.setHeader(
+      'Set-Cookie',
+      sessionCookie(token, {
+        persistent: Boolean(req.session && req.session.remember),
+        secure: requestIsSecure(req)
+      })
     );
 
     res.json({ message: 'Password changed successfully.' });

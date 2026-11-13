@@ -12,7 +12,6 @@ const codeInput = document.getElementById('signupCode');
 const codeSent = document.getElementById('signupCodeSent');
 const codeError = document.getElementById('signupCodeError');
 const codeStatus = document.getElementById('signupCodeStatus');
-const devCodeNote = document.getElementById('signupDevCode');
 const verifyBtn = document.getElementById('verifySignupBtn');
 const resendBtn = document.getElementById('resendSignupBtn');
 const backBtn = document.getElementById('backToSignupBtn');
@@ -47,16 +46,6 @@ function clearCodeMessages() {
   codeStatus.className = 'form-status';
 }
 
-function renderDevCode(code) {
-  if (code) {
-    devCodeNote.classList.remove('hidden');
-    devCodeNote.textContent = `Development mode: your verification code is ${code}. Add SMTP details in .env to send real emails.`;
-  } else {
-    devCodeNote.classList.add('hidden');
-    devCodeNote.textContent = '';
-  }
-}
-
 function startResendCooldown(seconds) {
   if (resendInterval) clearInterval(resendInterval);
 
@@ -80,19 +69,16 @@ function startResendCooldown(seconds) {
 function showVerifyStep(data) {
   challenge = data.challenge;
   codeSent.textContent = data.emailDelivered
-    ? `A 6-digit code was sent to ${data.email}.`
-    : `Email delivery is not configured. Use the development code below for ${data.email}.`;
+    ? 'A 6-digit code was sent to your email. Check your inbox.'
+    : 'We could not send the verification email. Use Resend code to try again.';
   codeInput.value = '';
   clearCodeMessages();
-  renderDevCode(data.devCode);
 
   form.classList.add('hidden');
   verifyForm.classList.remove('hidden');
   authAlt.classList.add('hidden');
-  authTitle.textContent = data.emailDelivered ? 'Check your email' : 'Enter your code';
-  authSubtitle.textContent = data.emailDelivered
-    ? 'Enter the 6-digit code to verify your new account.'
-    : 'Use the development code below to verify your account.';
+  authTitle.textContent = 'Check your email';
+  authSubtitle.textContent = 'Enter the 6-digit code to verify your new account.';
   startResendCooldown(60);
   codeInput.focus();
 }
@@ -106,7 +92,6 @@ function showSignupStep() {
   resendBtn.disabled = false;
   resendBtn.textContent = 'Resend code';
   clearCodeMessages();
-  renderDevCode(null);
 
   verifyForm.classList.add('hidden');
   form.classList.remove('hidden');
@@ -273,10 +258,9 @@ resendBtn.addEventListener('click', async () => {
     }
 
     challenge = data.challenge;
-    renderDevCode(data.devCode);
     codeStatus.textContent = data.emailDelivered
-      ? 'A new code was sent.'
-      : 'A new development code was created.';
+      ? 'A new code was sent. Check your inbox.'
+      : 'We could not send the code. Please try again.';
     codeStatus.className = 'form-status ok';
     codeInput.value = '';
     codeInput.focus();

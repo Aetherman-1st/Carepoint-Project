@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin login | CarePoint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./motion.css">
+  <script src="./motion.js" defer></script>
+</head>
+<body>
+  <main class="auth-main">
+    <div class="container">
+      <div class="auth-panel">
+        <a class="brand" href="https://carepoint-15l.pages.dev">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>CarePoint Admin</span>
+        </a>
+
+        <div class="auth-heading">
+          <h1>Admin login</h1>
+          <p>Sign in with your CarePoint administrator account.</p>
+        </div>
+
+        <form id="adminLoginForm" class="auth-form" novalidate>
+          <div class="field">
+            <label for="email">Email address</label>
+            <input type="email" id="email" autocomplete="email" autofocus required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-row">
+              <input type="password" id="password" autocomplete="current-password" required>
+              <button type="button" id="toggleBtn">Show</button>
+            </div>
+          </div>
+          <p id="error" class="auth-error" role="alert"></p>
+          <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
+        </form>
+
+        <p class="auth-alt"><a href="https://carepoint-15l.pages.dev">Back to CarePoint</a></p>
+      </div>
+    </div>
+  </main>
+
+  <script src="./config.js"></script>
+  <script src="./supabase.js"></script>
+  <script src="./login.js"></script>
+</body>
+</html>

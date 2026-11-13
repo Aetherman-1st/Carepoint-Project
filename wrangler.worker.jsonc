@@ -1,0 +1,86 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "carepoint-api",
+  "main": "worker-entry.js",
+  "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/login",
+      "/login.html",
+      "/signup",
+      "/signup.html",
+      "/logout",
+      "/forgot-password",
+      "/forgot-password.html",
+      "/book",
+      "/patient",
+      "/patient.html",
+      "/patient.js",
+      "/profile",
+      "/profile.html",
+      "/profile.js",
+      "/clinic",
+      "/clinic.html",
+      "/clinic.js",
+      "/meetings",
+      "/meetings.html",
+      "/meetings.js",
+      "/clinics",
+      "/clinics.html",
+      "/services",
+      "/services.html",
+      "/how-it-works",
+      "/how-it-works.html",
+      "/contact",
+      "/contact.html"
+    ]
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "70da95ddfdd64684acf8b06c69176b56"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_IP_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
+      "name": "AUTH_EMAIL_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "CONTACT_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ],
+  "vars": {
+    "NODE_ENV": "production",
+    "ADMIN_EMAIL": "yazeed.omari2007@gmail.com",
+    "ADMIN_APP_URL": "https://carepoint-admin.pages.dev",
+    "EMAIL_TRANSPORT": "smtp",
+    "SMTP_USER": "care.point231@gmail.com",
+    "MAIL_FROM": "CarePoint <care.point231@gmail.com>",
+    "TWO_FACTOR_CODE_MINUTES": "10",
+    "APP_TIMEZONE": "Asia/Amman",
+    "ZOOM_ACCOUNT_ID": "IFBIyAm3TXGGL-quYnsaxw",
+    "ZOOM_CLIENT_ID": "d6JFWJssTSaDR_4zZpl0hA",
+    "ZOOM_USER_ID": "me",
+    "ZOOM_MEETING_DURATION": "30",
+    "TIDIO_PUBLIC_KEY": "4gdbfxseyba21lfjmtzjwdxwz9ufoj60",
+    "TIDIO_CLIENT_ID": "ci_9e48c84a40a64daf8196df3ac976cc99",
+    "PORT": "3000"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

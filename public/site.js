@@ -20,6 +20,27 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
+document.addEventListener(
+  'error',
+  (event) => {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement)) return;
+
+    const media = image.closest('.clinic-directory-media');
+    if (!media || media.querySelector('.clinic-media-mark')) return;
+
+    media.classList.add('clinic-directory-media--empty');
+    image.remove();
+
+    const mark = document.createElement('span');
+    mark.className = 'clinic-media-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.innerHTML = clinicCrossIcon;
+    media.appendChild(mark);
+  },
+  true
+);
+
 function initialsFor(user) {
   const first = (user.first_name || '').trim().charAt(0);
   const last = (user.last_name || '').trim().charAt(0);
@@ -119,12 +140,16 @@ function clinicCardMarkup(clinic, index, animate) {
         .map((item) => `<div><dt>${item.label}</dt><dd>${esc(item.value)}</dd></div>`)
         .join('')}</dl>`
     : '';
-  const mediaMarkup = clinic.image_url
-    ? `
-      <div class="clinic-directory-media">
-        <img src="${esc(clinic.image_url)}" alt="Photo of ${esc(clinic.name)}" loading="lazy" decoding="async">
-      </div>`
-    : '';
+  const mediaMarkup = `
+      <div class="clinic-directory-media${clinic.image_url ? '' : ' clinic-directory-media--empty'}">
+        ${
+          clinic.image_url
+            ? `<img src="${esc(clinic.image_url)}" alt="Photo of ${esc(clinic.name)}" loading="lazy" decoding="async">`
+            : `<span class="clinic-media-mark" aria-hidden="true">${clinicCrossIcon}</span>`
+        }
+      </div>`;
+  const verifiedIcon =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg>';
 
   return `
     <article class="clinic-directory-card${animate ? ' is-entering' : ''}"${
@@ -136,11 +161,14 @@ function clinicCardMarkup(clinic, index, animate) {
           <span class="clinic-mark" aria-hidden="true">${clinicCrossIcon}</span>
           <div class="clinic-directory-heading">
             <h3>${esc(clinic.name)}</h3>
-            ${
-              clinic.specialty
-                ? `<span class="clinic-specialty-tag">${esc(clinic.specialty)}</span>`
-                : ''
-            }
+            <div class="clinic-directory-tags">
+              ${
+                clinic.specialty
+                  ? `<span class="clinic-specialty-tag">${esc(clinic.specialty)}</span>`
+                  : ''
+              }
+              <span class="clinic-verified">${verifiedIcon} Verified</span>
+            </div>
           </div>
         </div>
         ${
@@ -278,14 +306,13 @@ async function loadSession() {
     const loginLink = document.getElementById('loginLink');
     const bookLink = document.getElementById('bookLink');
     const portalLink = document.getElementById('portalLink');
-    const admin = data.user.role === 'admin';
 
     if (loginLink) loginLink.classList.add('hidden');
     if (bookLink) bookLink.classList.add('hidden');
     if (portalLink) {
       portalLink.classList.remove('hidden');
-      portalLink.textContent = admin ? 'Admin dashboard' : 'My portal';
-      portalLink.href = admin ? '/admin' : '/patient';
+      portalLink.textContent = 'My portal';
+      portalLink.href = '/patient';
     }
 
     renderHeaderAvatar(data.user);

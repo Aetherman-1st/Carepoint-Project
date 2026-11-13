@@ -223,10 +223,10 @@ function renderCharts() {
   );
 
   const statusColors = {
-    Pending: '#b45309',
-    Confirmed: '#15803d',
-    Completed: '#1d4ed8',
-    Cancelled: '#6b7280'
+    Pending: '#c2410c',
+    Confirmed: '#0f766e',
+    Completed: '#0e7490',
+    Cancelled: '#64748b'
   };
 
   const statuses = ['Pending', 'Confirmed', 'Completed', 'Cancelled'].map((status) => ({

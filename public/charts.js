@@ -1,6 +1,6 @@
 (function () {
   const NS = 'http://www.w3.org/2000/svg';
-  const PALETTE = ['#d62828', '#1d4ed8', '#15803d', '#b45309', '#7c3aed', '#6b7280'];
+  const PALETTE = ['#0f766e', '#0e7490', '#0d9488', '#c2410c', '#7c3aed', '#64748b'];
 
   function make(tag, attrs) {
     const element = document.createElementNS(NS, tag);
@@ -11,7 +11,7 @@
   }
 
   function text(svg, x, y, value, attrs) {
-    const node = make('text', Object.assign({ x: x, y: y, fill: '#6b7280', 'font-size': 11 }, attrs || {}));
+    const node = make('text', Object.assign({ x: x, y: y, fill: '#5b7280', 'font-size': 11 }, attrs || {}));
     node.textContent = value;
     svg.appendChild(node);
     return node;
@@ -79,7 +79,7 @@
       text(svg, width / 2, height / 2, 'No data yet', {
         'text-anchor': 'middle',
         'font-size': 13,
-        fill: '#9ca3af'
+        fill: '#91a6a2'
       });
       host.appendChild(svg);
       return;
@@ -113,7 +113,7 @@
       text(svg, x + barW / 2, pad.top + plotH + 18, item.label, {
         'text-anchor': 'middle',
         'font-size': 11,
-        fill: '#6b7280'
+        fill: '#5b7280'
       });
 
       if (item.value > 0) {
@@ -121,7 +121,7 @@
           'text-anchor': 'middle',
           'font-size': 11,
           'font-weight': 600,
-          fill: '#1f2328'
+          fill: '#0b1f33'
         });
       }
     });
@@ -166,7 +166,7 @@
       text(svg, cx, cy - 2, 'No data', {
         'text-anchor': 'middle',
         'font-size': 13,
-        fill: '#9ca3af'
+        fill: '#91a6a2'
       });
     } else {
       let offset = 0;
@@ -198,12 +198,12 @@
         'text-anchor': 'middle',
         'font-size': 28,
         'font-weight': 600,
-        fill: '#1f2328'
+        fill: '#0b1f33'
       });
       text(svg, cx, cy + 18, settings.centerLabel || 'total', {
         'text-anchor': 'middle',
         'font-size': 11,
-        fill: '#6b7280'
+        fill: '#5b7280'
       });
     }
 

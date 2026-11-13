@@ -1,15 +1,14 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const { sendPasswordResetCode } = require('../lib/mailer');
+const { hashPassword, verifyPassword } = require('../lib/password');
 
 const router = express.Router();
 
 const CODE_MINUTES = Number(process.env.PASSWORD_RESET_CODE_MINUTES) || 10;
 const MAX_ATTEMPTS = 5;
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const GENERIC_MESSAGE = 'If an account exists for that email, we sent a password reset code.';
 
 function requestIp(req) {
@@ -23,53 +22,53 @@ router.post('/request', async (req, res) => {
     return res.status(400).json({ message: 'Please enter a valid email address.' });
   }
 
+  const challenge = crypto.randomBytes(24).toString('hex');
+
   try {
     const result = await pool.query('SELECT * FROM users WHERE lower(email) = $1', [email]);
-    if (result.rows.length === 0 || result.rows[0].banned_at) {
-      return res.json({ message: GENERIC_MESSAGE });
-    }
 
-    const user = result.rows[0];
-    await pool.query('UPDATE password_reset_codes SET consumed = true WHERE user_id = $1 AND consumed = false', [
-      user.id
-    ]);
+    if (result.rows.length > 0 && !result.rows[0].banned_at) {
+      const user = result.rows[0];
 
-    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-    const challenge = crypto.randomBytes(24).toString('hex');
-    const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
-    const expiresAt = new Date(Date.now() + CODE_MINUTES * 60 * 1000);
+      await pool.query(
+        'UPDATE password_reset_codes SET consumed = true WHERE user_id = $1 AND consumed = false',
+        [user.id]
+      );
 
-    await pool.query(
-      `INSERT INTO password_reset_codes (challenge, user_id, code_hash, expires_at, request_ip)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [challenge, user.id, codeHash, expiresAt, requestIp(req)]
-    );
+      const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+      const codeHash = await hashPassword(code, BCRYPT_ROUNDS);
+      const expiresAt = new Date(Date.now() + CODE_MINUTES * 60 * 1000);
 
-    let delivered = false;
-    let mode = 'error';
-    try {
-      const sent = await sendPasswordResetCode({
-        to: user.email,
-        name: user.first_name,
-        code,
-        minutes: CODE_MINUTES
-      });
-      delivered = sent.delivered;
-      mode = sent.mode;
-    } catch (err) {
-      console.error('Password reset email delivery failed:', err.message);
+      await pool.query(
+        `INSERT INTO password_reset_codes (challenge, user_id, code_hash, expires_at, request_ip)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [challenge, user.id, codeHash, expiresAt, requestIp(req)]
+      );
+
+      try {
+        await sendPasswordResetCode({
+          to: user.email,
+          name: user.first_name,
+          code,
+          minutes: CODE_MINUTES
+        });
+      } catch (err) {
+        console.error('Password reset email delivery failed.');
+      }
     }
 
     res.json({
       message: GENERIC_MESSAGE,
       challenge,
-      emailDelivered: delivered,
-      expiresInMinutes: CODE_MINUTES,
-      devCode: !IS_PRODUCTION && mode === 'console' ? code : undefined
+      expiresInMinutes: CODE_MINUTES
     });
   } catch (err) {
-    console.error('Password reset request failed:', err.message);
-    res.json({ message: GENERIC_MESSAGE });
+    console.error('Password reset request failed.');
+    res.json({
+      message: GENERIC_MESSAGE,
+      challenge,
+      expiresInMinutes: CODE_MINUTES
+    });
   }
 });
 
@@ -115,7 +114,7 @@ router.post('/verify', async (req, res) => {
       return res.status(429).json({ message: 'Too many incorrect attempts. Request a new code.' });
     }
 
-    const valid = await bcrypt.compare(String(code), record.code_hash);
+    const valid = await verifyPassword(String(code), record.code_hash);
     if (!valid) {
       const attempts = record.attempts + 1;
       await pool.query('UPDATE password_reset_codes SET attempts = $1 WHERE id = $2', [attempts, record.id]);
@@ -128,7 +127,7 @@ router.post('/verify', async (req, res) => {
       });
     }
 
-    const hashed = await bcrypt.hash(String(new_password), BCRYPT_ROUNDS);
+    const hashed = await hashPassword(String(new_password), BCRYPT_ROUNDS);
 
     await pool.query(
       `UPDATE users

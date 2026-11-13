@@ -1,8 +1,12 @@
+const config = window.CAREPOINT_ADMIN_CONFIG || {};
+const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+
 const state = {
   appointments: [],
   messages: [],
   users: [],
-  activeProfile: null
+  activeProfile: null,
+  admin: null
 };
 
 let modalReturnFocus = null;
@@ -81,34 +85,59 @@ function showToast(message, type) {
 
 async function loadSession() {
   try {
-    const response = await fetch('/api/session');
-    const data = await response.json();
-    if (!data.user) {
-      window.location.href = '/login?next=' + encodeURIComponent('/admin');
-      return;
+    const { data } = await client.auth.getSession();
+    const session = data.session;
+
+    if (!session) {
+      window.location.replace('./');
+      return null;
     }
-    const name = [data.user.first_name, data.user.last_name].filter(Boolean).join(' ');
-    document.getElementById('adminName').textContent = name || data.user.email;
+
+    const { data: admin, error } = await client.rpc('is_admin');
+    if (error || admin !== true) {
+      await client.auth.signOut();
+      window.location.replace('./');
+      return null;
+    }
+
+    const member = await client
+      .from('admin_members')
+      .select('user_id, role')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle();
+
+    state.admin = member.data || null;
+
+    const meta = session.user.user_metadata || {};
+    const name = [meta.first_name, meta.last_name].filter(Boolean).join(' ');
+    document.getElementById('adminName').textContent = name || session.user.email || 'Administrator';
+
+    return session;
   } catch (err) {
-    window.location.href = '/login?next=' + encodeURIComponent('/admin');
+    window.location.replace('./');
+    return null;
   }
 }
 
 async function loadData() {
   try {
-    const [appointmentsResponse, messagesResponse, usersResponse] = await Promise.all([
-      fetch('/api/appointments'),
-      fetch('/api/contact'),
-      fetch('/api/admin/users')
+    const [appointments, messages, users] = await Promise.all([
+      client
+        .from('admin_appointments')
+        .select('*')
+        .order('appointment_date', { ascending: false })
+        .order('appointment_time', { ascending: false }),
+      client.from('admin_contact_messages').select('*').order('created_at', { ascending: false }),
+      client.from('admin_users').select('*').order('created_at', { ascending: false })
     ]);
 
-    if (!appointmentsResponse.ok || !messagesResponse.ok || !usersResponse.ok) {
-      throw new Error('Failed');
-    }
+    if (appointments.error) throw appointments.error;
+    if (messages.error) throw messages.error;
+    if (users.error) throw users.error;
 
-    state.appointments = await appointmentsResponse.json();
-    state.messages = await messagesResponse.json();
-    state.users = await usersResponse.json();
+    state.appointments = appointments.data || [];
+    state.messages = messages.data || [];
+    state.users = users.data || [];
     renderAll();
   } catch (err) {
     document.getElementById('recentAppointments').innerHTML =
@@ -227,7 +256,7 @@ function renderUsers() {
   body.innerHTML = list
     .map((user, index) => {
       const name = [user.first_name, user.last_name].filter(Boolean).join(' ');
-      const protectedAccount = user.role === 'admin';
+      const protectedAccount = Boolean(user.protected) || user.role === 'admin';
 
       return `
         <tr class="is-entering${user.banned_at ? ' is-banned' : ''}" style="--item-index: ${index}">
@@ -324,7 +353,7 @@ function renderPatientProfile(data) {
         .join('')
     : '<div class="patient-profile-empty-state">No appointments yet.</div>';
 
-  const actionMarkup = user.protected
+  const actionMarkup = user.protected || user.role === 'admin'
     ? '<p class="patient-protected-note">Administrator accounts cannot be banned or deleted.</p>'
     : `
       <button type="button" class="btn btn-outline" data-profile-ban="${user.id}" data-banned="${user.banned_at ? 'true' : 'false'}">
@@ -389,14 +418,23 @@ async function loadPatientProfile(id) {
   const request = ++profileRequest;
 
   try {
-    const response = await fetch(`/api/admin/users/${id}`);
-    const data = await response.json();
+    const [profile, appointments] = await Promise.all([
+      client.from('admin_users').select('*').eq('id', id).maybeSingle(),
+      client
+        .from('admin_appointments')
+        .select('*')
+        .eq('user_id', id)
+        .order('appointment_date', { ascending: false })
+        .order('appointment_time', { ascending: false })
+    ]);
 
     if (request !== profileRequest) return;
-    if (!response.ok) throw new Error(data.message || 'Could not load the account profile.');
+    if (profile.error) throw profile.error;
+    if (appointments.error) throw appointments.error;
+    if (!profile.data) throw new Error('Account not found.');
 
-    state.activeProfile = data;
-    renderPatientProfile(data);
+    state.activeProfile = { user: profile.data, appointments: appointments.data || [] };
+    renderPatientProfile(state.activeProfile);
   } catch (err) {
     if (request !== profileRequest) return;
     document.getElementById('patientModalBody').innerHTML = `
@@ -457,28 +495,28 @@ async function setUserBan(id, banned, button) {
   }
 
   try {
-    const response = await fetch(`/api/admin/users/${id}/ban`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ banned })
-    });
-    const data = await response.json();
+    const { data, error } = await client
+      .from('users')
+      .update({ banned_at: banned ? new Date().toISOString() : null })
+      .eq('id', id)
+      .select('id, banned_at')
+      .maybeSingle();
 
-    if (!response.ok) {
-      showToast(data.message || 'Could not update this account.', 'warn');
+    if (error) {
+      showToast(error.message || 'Could not update this account.', 'warn');
       return;
     }
 
-    if (target) target.banned_at = data.user.banned_at;
+    if (target && data) target.banned_at = data.banned_at;
 
-    if (state.activeProfile && state.activeProfile.user.id === id) {
-      state.activeProfile.user.banned_at = data.user.banned_at;
+    if (state.activeProfile && state.activeProfile.user.id === id && data) {
+      state.activeProfile.user.banned_at = data.banned_at;
       renderPatientProfile(state.activeProfile);
     }
 
     renderUsers();
     renderStats();
-    showToast(data.message, 'ok');
+    showToast(banned ? 'Account banned.' : 'Account access restored.', 'ok');
   } catch (err) {
     showToast('Could not update this account. Please try again.', 'warn');
   } finally {
@@ -510,17 +548,16 @@ async function deleteUserAccount(id, button) {
   }
 
   try {
-    const response = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
-    const data = await response.json();
+    const { error } = await client.from('users').delete().eq('id', id);
 
-    if (!response.ok) {
-      showToast(data.message || 'Could not delete this account.', 'warn');
+    if (error) {
+      showToast(error.message || 'Could not delete this account.', 'warn');
       return;
     }
 
     closePatientModal();
     await loadData();
-    showToast(data.message, 'ok');
+    showToast('Account deleted.', 'ok');
   } catch (err) {
     showToast('Could not delete this account. Please try again.', 'warn');
   } finally {
@@ -844,15 +881,10 @@ document.getElementById('adminAppointments').addEventListener('change', async (e
   select.className = 'status-select status-' + requested.toLowerCase();
 
   try {
-    const response = await fetch(`/api/appointments/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: requested })
-    });
+    const { error } = await client.from('appointments').update({ status: requested }).eq('id', id);
 
-    if (!response.ok) {
-      const data = await response.json();
-      window.alert(data.message || 'Could not update the appointment.');
+    if (error) {
+      window.alert(error.message || 'Could not update the appointment.');
       select.value = previous;
       select.className = 'status-select status-' + previous.toLowerCase();
       select.disabled = false;
@@ -881,9 +913,16 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
   const button = form.querySelector('button[type="submit"]');
   const status = form.querySelector('[data-reply-status]');
   const body = textarea.value.trim();
+  const adminId = state.admin && state.admin.user_id;
 
   if (!body) {
     status.textContent = 'Write a reply first.';
+    status.className = 'form-status err';
+    return;
+  }
+
+  if (!adminId) {
+    status.textContent = 'This admin account is not linked to a CarePoint profile.';
     status.className = 'form-status err';
     return;
   }
@@ -895,16 +934,15 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
   status.className = 'form-status';
 
   try {
-    const response = await fetch(`/api/contact/${id}/replies`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body })
+    const { error } = await client.from('contact_replies').insert({
+      message_id: id,
+      admin_id: adminId,
+      body,
+      emailed: false
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      status.textContent = data.message || 'Could not send the reply.';
+    if (error) {
+      status.textContent = error.message || 'Could not send the reply.';
       status.className = 'form-status err';
       button.disabled = false;
       button.classList.remove('is-loading');
@@ -912,16 +950,8 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
       return;
     }
 
-    const message = state.messages.find((item) => item.id === id);
-    if (message) {
-      if (!Array.isArray(message.replies)) message.replies = [];
-      message.replies.push(data.reply);
-    }
-
-    renderMessages();
-    renderStats();
-    renderRecentMessages();
-    showToast(data.message, data.emailed ? 'ok' : 'warn');
+    await loadData();
+    showToast('Reply saved.', 'ok');
   } catch (err) {
     status.textContent = 'Could not send the reply. Please try again.';
     status.className = 'form-status err';
@@ -932,15 +962,12 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
-  try {
-    await fetch('/logout', { method: 'POST' });
-  } catch (err) {
-    return;
-  }
-  window.location.href = '/';
+  await client.auth.signOut();
+  window.location.replace('./');
 });
 
 window.addEventListener('resize', positionAdminIndicator);
-loadSession();
-loadData();
+loadSession().then((session) => {
+  if (session) loadData();
+});
 window.requestAnimationFrame(positionAdminIndicator);

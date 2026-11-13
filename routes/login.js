@@ -1,10 +1,10 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
-const { isAdminEmail, roleHome } = require('../lib/auth');
+const { isAdminEmail, roleHome, ADMIN_APP_URL } = require('../lib/auth');
 const { sendLoginCode } = require('../lib/mailer');
+const { hashPassword, verifyPassword } = require('../lib/password');
 
 const router = express.Router();
 
@@ -13,7 +13,6 @@ const MAX_ATTEMPTS = 5;
 const MAX_CODES_PER_WINDOW = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 function requestIp(req) {
   return req.headers['x-forwarded-for'] || req.ip || null;
@@ -38,7 +37,7 @@ async function issueCode(user, req, remember = false) {
 
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const challenge = crypto.randomBytes(24).toString('hex');
-  const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+  const codeHash = await hashPassword(code, BCRYPT_ROUNDS);
   const expiresAt = new Date(Date.now() + CODE_MINUTES * 60 * 1000);
 
   const inserted = await pool.query(
@@ -104,7 +103,7 @@ router.post('/', async (req, res) => {
     }
 
     const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
+    const match = await verifyPassword(password, user.password_hash);
 
     if (!match) {
       return res.status(401).json({
@@ -120,38 +119,40 @@ router.post('/', async (req, res) => {
       });
     }
 
+    if (user.role === 'admin' || isAdminEmail(user.email)) {
+      return res.status(403).json({
+        code: 'admin_login_moved',
+        message: 'Administrator accounts sign in at the CarePoint admin dashboard.',
+        admin_url: ADMIN_APP_URL
+      });
+    }
+
     if (!user.email_verified_at) {
       return res.status(403).json({
         code: 'email_not_verified',
-        canResendVerification: true,
-        email: user.email,
-        message: 'Your email address is not verified yet. Resend the verification code to continue.'
+        message: 'Please verify your email before logging in.',
+        canResendVerification: true
       });
     }
 
     const issued = await issueCode(user, req, Boolean(remember));
-    const failed = issued.mode === 'error';
+    if (issued.mode === 'error' || !issued.delivered) {
+      return res.status(502).json({
+        message: 'Could not send the verification email, please try again.'
+      });
+    }
 
-    res.status(failed ? 502 : 200).json({
-      twoFactorRequired: !failed,
-      verificationRequired: false,
+    res.json({
+      message: 'Enter the 6-digit code sent to your email.',
+      twoFactorRequired: true,
       challenge: issued.challenge,
       email: user.email,
-      message: failed
-        ? 'We could not send the verification email. Please try again shortly.'
-        : issued.delivered
-          ? `We sent a 6-digit code to ${user.email}.`
-          : 'Email delivery is not configured. Use the development code provided.',
-      emailDelivered: issued.delivered,
-      emailDeliveryFailed: failed,
-      canResend: true,
-      devCode: !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined,
+      emailDelivered: true,
       expiresInMinutes: issued.minutes
     });
   } catch (err) {
-    res.status(err.status || 500).json({
-      message: err.status ? err.message : 'Something went wrong'
-    });
+    console.error('Login failed:', err.message);
+    res.status(500).json({ message: 'Something went wrong' });
   }
 });
 
@@ -184,6 +185,14 @@ router.post('/verify', async (req, res) => {
       });
     }
 
+    if (record.role === 'admin' || isAdminEmail(record.email)) {
+      return res.status(403).json({
+        code: 'admin_login_moved',
+        message: 'Administrator accounts sign in at the CarePoint admin dashboard.',
+        admin_url: ADMIN_APP_URL
+      });
+    }
+
     if (record.consumed) {
       return res.status(400).json({ message: 'This code has already been used. Please log in again.' });
     }
@@ -197,7 +206,7 @@ router.post('/verify', async (req, res) => {
       return res.status(429).json({ message: 'Too many incorrect attempts. Please request a new code.' });
     }
 
-    const valid = await bcrypt.compare(String(code), record.code_hash);
+    const valid = await verifyPassword(String(code), record.code_hash);
 
     if (!valid) {
       const attempts = record.attempts + 1;
@@ -221,7 +230,7 @@ router.post('/verify', async (req, res) => {
       record.user_id
     ]);
 
-    const role = isAdminEmail(record.email) ? 'admin' : record.role || 'user';
+    const role = record.role || 'user';
     const token = createSession(
       {
         id: record.user_id,
@@ -302,18 +311,15 @@ router.post('/resend', async (req, res) => {
     };
 
     const issued = await issueCode(user, req, Boolean(record.remember));
-    const failed = issued.mode === 'error';
+    const failed = issued.mode === 'error' || !issued.delivered;
 
     res.status(failed ? 502 : 200).json({
       message: failed
         ? 'We could not send the verification email. Please try again shortly.'
-        : issued.delivered
-          ? 'A new code was sent.'
-          : 'A new development code was created.',
+        : 'A new code was sent. Check your inbox.',
       challenge: issued.challenge,
       emailDelivered: issued.delivered,
       emailDeliveryFailed: failed,
-      devCode: !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined,
       expiresInMinutes: issued.minutes
     });
   } catch (err) {

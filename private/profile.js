@@ -12,6 +12,12 @@ const accountSince = document.getElementById('accountSince');
 const profileStatus = document.getElementById('profileStatus');
 const saveProfileButton = document.getElementById('saveProfile');
 const logoutButton = document.getElementById('logoutBtn');
+const passwordForm = document.getElementById('passwordForm');
+const currentPasswordInput = document.getElementById('currentPassword');
+const newPasswordInput = document.getElementById('newPassword');
+const confirmNewPasswordInput = document.getElementById('confirmNewPassword');
+const changePasswordButton = document.getElementById('changePasswordBtn');
+const passwordStatus = document.getElementById('passwordStatus');
 
 let currentProfile = null;
 let avatarData = null;
@@ -26,6 +32,11 @@ function initialsFor(profile) {
 function setStatus(message, type) {
   profileStatus.textContent = message;
   profileStatus.className = `form-status${type ? ' ' + type : ''}`;
+}
+
+function setPasswordStatus(message, type) {
+  passwordStatus.textContent = message;
+  passwordStatus.className = `form-status${type ? ' ' + type : ''}`;
 }
 
 function setAvatarPreview(profile) {
@@ -210,6 +221,59 @@ profileForm.addEventListener('submit', async (event) => {
     saveProfileButton.disabled = false;
     saveProfileButton.classList.remove('is-loading');
     saveProfileButton.textContent = 'Save changes';
+  }
+});
+
+passwordForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  setPasswordStatus('', '');
+
+  const currentPassword = currentPasswordInput.value;
+  const newPassword = newPasswordInput.value;
+  const confirmNewPassword = confirmNewPasswordInput.value;
+
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    setPasswordStatus('Fill in all password fields.', 'err');
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    setPasswordStatus('New password must be at least 8 characters.', 'err');
+    return;
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    setPasswordStatus('New passwords do not match.', 'err');
+    return;
+  }
+
+  changePasswordButton.disabled = true;
+  changePasswordButton.classList.add('is-loading');
+  changePasswordButton.textContent = 'Updating...';
+
+  try {
+    const response = await fetch('/api/password-change', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPassword: currentPassword, newPassword })
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setPasswordStatus(data.message || 'Could not change the password.', 'err');
+      return;
+    }
+
+    currentPasswordInput.value = '';
+    newPasswordInput.value = '';
+    confirmNewPasswordInput.value = '';
+    setPasswordStatus('Password updated. Other sessions were signed out.', 'ok');
+  } catch (err) {
+    setPasswordStatus('Could not change the password. Please try again.', 'err');
+  } finally {
+    changePasswordButton.disabled = false;
+    changePasswordButton.classList.remove('is-loading');
+    changePasswordButton.textContent = 'Update password';
   }
 });
 

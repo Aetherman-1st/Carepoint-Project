@@ -8,7 +8,6 @@ const requestError = document.getElementById('requestError');
 const resetError = document.getElementById('resetError');
 const resetStatus = document.getElementById('resetStatus');
 const resetSent = document.getElementById('resetSent');
-const devCodeNote = document.getElementById('devCodeNote');
 const requestBtn = document.getElementById('requestBtn');
 const resetBtn = document.getElementById('resetBtn');
 const backBtn = document.getElementById('backBtn');
@@ -35,16 +34,7 @@ function setStatus(message, type) {
 
 function showResetStep(data) {
   challenge = data.challenge;
-  resetSent.textContent = data.emailDelivered
-    ? `A reset code was sent to ${emailInput.value.trim()}.`
-    : 'Email delivery is not configured. Use the development code below.';
-  if (data.devCode) {
-    devCodeNote.classList.remove('hidden');
-    devCodeNote.textContent = `Development mode: your reset code is ${data.devCode}.`;
-  } else {
-    devCodeNote.classList.add('hidden');
-    devCodeNote.textContent = '';
-  }
+  resetSent.textContent = 'If an account exists for that email, a 6-digit code was sent. Check your inbox.';
   codeInput.value = '';
   newPasswordInput.value = '';
   confirmPasswordInput.value = '';
@@ -97,10 +87,7 @@ requestForm.addEventListener('submit', async (event) => {
     if (data.challenge) {
       showResetStep(data);
     } else {
-      showError(
-        requestError,
-        data.message || 'If an account exists for that email, we sent a reset code.'
-      );
+      showError(requestError, data.message || 'Could not send a reset code. Please try again.');
     }
   } catch (err) {
     showError(requestError, 'Could not send a reset code. Please try again.');

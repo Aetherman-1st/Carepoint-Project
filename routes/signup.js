@@ -1,10 +1,10 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const { sendSignupCode } = require('../lib/mailer');
 const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
-const { isAdminEmail, roleHome } = require('../lib/auth');
+const { isAdminEmail, roleHome, ADMIN_APP_URL } = require('../lib/auth');
+const { hashPassword, verifyPassword } = require('../lib/password');
 
 const router = express.Router();
 
@@ -13,7 +13,6 @@ const MAX_ATTEMPTS = 5;
 const MAX_CODES_PER_WINDOW = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 function requestIp(req) {
   return req.headers['x-forwarded-for'] || req.ip || null;
@@ -38,7 +37,7 @@ async function issueCode(user, req) {
 
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const challenge = crypto.randomBytes(24).toString('hex');
-  const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+  const codeHash = await hashPassword(code, BCRYPT_ROUNDS);
   const expiresAt = new Date(Date.now() + CODE_MINUTES * 60 * 1000);
 
   const inserted = await pool.query(
@@ -85,22 +84,18 @@ async function issueCode(user, req) {
 }
 
 function verificationResponse(user, issued, statusCode, res) {
-  const failed = issued.mode === 'error';
-  const devCode = !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined;
+  const failed = issued.mode === 'error' || !issued.delivered;
 
   res.status(failed ? 502 : statusCode).json({
     message: failed
-      ? 'Your account was created, but we could not send the verification email. You can retry sending it.'
-      : issued.delivered
-        ? `We sent a 6-digit code to ${user.email}.`
-        : 'Email delivery is not configured. Use the development code provided.',
+      ? 'Your account was created, but we could not send the verification email. Use Resend code to try again.'
+      : 'We sent a 6-digit code to your email. Check your inbox.',
     verificationRequired: true,
     challenge: issued.challenge,
     email: user.email,
     emailDelivered: issued.delivered,
     emailDeliveryFailed: failed,
     canResend: true,
-    devCode,
     expiresInMinutes: issued.minutes
   });
 }
@@ -124,6 +119,14 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   }
 
+  if (isAdminEmail(cleanEmail)) {
+    return res.status(403).json({
+      code: 'admin_signup_moved',
+      message: 'Administrator accounts are managed separately.',
+      admin_url: ADMIN_APP_URL
+    });
+  }
+
   try {
     const result = await pool.query('SELECT * FROM users WHERE lower(email) = $1', [cleanEmail]);
 
@@ -134,24 +137,29 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ message: 'This email is already registered' });
       }
 
-      const matches = await bcrypt.compare(password, existing.password_hash);
+      const matches = await verifyPassword(password, existing.password_hash);
       if (!matches) {
         return res.status(400).json({
           message: 'This email is already registered. Please use the original password to continue.'
         });
       }
 
+      if (existing.banned_at) {
+        return res.status(403).json({ message: 'This account has been banned.' });
+      }
+
       const issued = await issueCode(existing, req);
       return verificationResponse(existing, issued, 200, res);
     }
 
-    const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const hashed = await hashPassword(password, BCRYPT_ROUNDS);
+    const role = 'user';
 
     const created = await pool.query(
-      `INSERT INTO users (first_name, last_name, email, password_hash)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, first_name, last_name, email, role, session_version`,
-      [cleanFirst, cleanLast, cleanEmail, hashed]
+      `INSERT INTO users (first_name, last_name, email, password_hash, role, email_verified_at, last_login_at, last_login_ip)
+       VALUES ($1, $2, $3, $4, $5, NULL, NULL, NULL)
+       RETURNING id, first_name, last_name, email, role, clinic_id, session_version, onboarding_completed_at`,
+      [cleanFirst, cleanLast, cleanEmail, hashed, role]
     );
 
     const issued = await issueCode(created.rows[0], req);
@@ -207,7 +215,7 @@ router.post('/verify', async (req, res) => {
       return res.status(429).json({ message: 'Too many incorrect attempts. Please request a new code.' });
     }
 
-    const valid = await bcrypt.compare(String(code), record.code_hash);
+    const valid = await verifyPassword(String(code), record.code_hash);
 
     if (!valid) {
       const attempts = record.attempts + 1;
@@ -239,7 +247,7 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ message: 'This account no longer exists.' });
     }
 
-    const role = isAdminEmail(user.email) ? 'admin' : user.role || 'user';
+    const role = user.role || 'user';
     const token = createSession(
       {
         id: user.id,
@@ -321,18 +329,15 @@ router.post('/resend', async (req, res) => {
     };
 
     const issued = await issueCode(user, req);
-    const failed = issued.mode === 'error';
+    const failed = issued.mode === 'error' || !issued.delivered;
 
     res.status(failed ? 502 : 200).json({
       message: failed
         ? 'We could not send the verification email. Please try again shortly.'
-        : issued.delivered
-          ? 'A new code was sent.'
-          : 'A new development code was created.',
+        : 'A new code was sent. Check your inbox.',
       challenge: issued.challenge,
       emailDelivered: issued.delivered,
       emailDeliveryFailed: failed,
-      devCode: !IS_PRODUCTION && issued.mode === 'console' ? issued.code : undefined,
       expiresInMinutes: issued.minutes
     });
   } catch (err) {
@@ -359,7 +364,7 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     const user = result.rows[0];
-    const matches = await bcrypt.compare(String(password), user.password_hash);
+    const matches = await verifyPassword(String(password), user.password_hash);
     if (!matches) {
       return res.status(401).json({ message: 'The password you entered is incorrect.' });
     }

@@ -9,6 +9,12 @@
   video.disableRemotePlayback = true;
   video.controls = false;
 
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    video.removeAttribute('autoplay');
+    video.pause();
+    return;
+  }
+
   function playVideo() {
     const result = video.play();
     if (result && typeof result.catch === 'function') {

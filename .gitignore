@@ -33,8 +33,14 @@ temp/
 *.swo
 *~
 
+# Cloudflare local state and secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 # Build, cache and coverage output
 dist/
+admin-dist/
 build/
 out/
 coverage/

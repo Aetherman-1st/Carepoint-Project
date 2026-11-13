@@ -130,6 +130,10 @@
   margin-bottom: 22px;
 }
 
+.profile-password-card {
+  margin-top: 20px;
+}
+
 .profile-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

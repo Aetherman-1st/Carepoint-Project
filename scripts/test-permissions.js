@@ -7,6 +7,7 @@ const { createSession } = require('../lib/session');
 
 const PORT = Number(process.env.TEST_PORT) || 3102;
 const BASE = `http://127.0.0.1:${PORT}`;
+const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://carepoint-admin.pages.dev';
 const stamp = Date.now();
 const prefix = `task2.${stamp}`;
 let server;
@@ -109,6 +110,7 @@ async function main() {
     env: {
       ...process.env,
       PORT: String(PORT),
+      ADMIN_APP_URL,
       EMAIL_TRANSPORT: 'console',
       NODE_ENV: 'development'
     },
@@ -142,10 +144,10 @@ async function main() {
   });
   assert(patientClinicApi.status === 403, 'patient cannot use clinic APIs');
 
-  const patientAdminApi = await fetch(`${BASE}/api/admin/users`, {
+  const legacyAdminApi = await fetch(`${BASE}/api/admin/users`, {
     headers: { Cookie: cookiePatientA }
   });
-  assert(patientAdminApi.status === 403, 'patient cannot use admin APIs');
+  assert(legacyAdminApi.status === 404, 'admin API is no longer exposed on the public site');
 
   console.log('Clinic ownership');
   const clinicProfile = await fetch(`${BASE}/api/clinic/profile`, {
@@ -203,38 +205,57 @@ async function main() {
   const clinicAdminApi = await fetch(`${BASE}/api/admin/users`, {
     headers: { Cookie: cookieClinicA }
   });
-  assert(clinicAdminApi.status === 403, 'clinic cannot use admin APIs');
+  assert(clinicAdminApi.status === 404, 'admin API remains unavailable to clinic accounts');
 
-  console.log('Admin and page redirects');
-  const adminUsers = await fetch(`${BASE}/api/admin/users`, {
-    headers: { Cookie: cookieAdmin }
+  console.log('Admin separation');
+  const adminLogin = await fetch(`${BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: admin.email, password: 'TaskTwo!2345' })
   });
-  assert(adminUsers.status === 200, 'admin can use admin APIs');
+  const adminLoginData = await adminLogin.json();
+  assert(adminLogin.status === 403 && adminLoginData.code === 'admin_login_moved', 'admin cannot sign in on the public site');
+  assert(adminLoginData.admin_url === ADMIN_APP_URL, 'public admin login points to the admin app');
+
+  const adminPage = await fetch(`${BASE}/admin`, { redirect: 'manual' });
+  assert(adminPage.status === 302 && adminPage.headers.get('location') === '/', 'public admin page is removed');
 
   const adminClinicApi = await fetch(`${BASE}/api/clinic/profile`, {
     headers: { Cookie: cookieAdmin }
   });
   assert(adminClinicApi.status === 403, 'admin cannot use clinic APIs');
 
-  const createClinicAccount = await fetch(`${BASE}/api/admin/clinic-accounts`, {
-    method: 'POST',
-    headers: { Cookie: cookieAdmin, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      clinic_id: clinicB.id,
-      email: `${prefix}.clinic.created@example.com`,
-      password: 'TaskTwo!6789',
-      first_name: 'Created',
-      last_name: 'Clinic'
-    })
-  });
-  assert(createClinicAccount.status === 201, 'admin can create a clinic account');
-
-  const createdAccountLogin = await fetch(`${BASE}/login`, {
+  const publicClinicLogin = await fetch(`${BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: `${prefix}.clinic.created@example.com`, password: 'TaskTwo!6789' })
+    body: JSON.stringify({ email: clinicUserA.email, password: 'TaskTwo!2345' })
   });
-  assert(createdAccountLogin.status === 200, 'admin-created clinic account can start login');
+  const publicClinicLoginData = await publicClinicLogin.json();
+  assert(publicClinicLogin.status === 200 && publicClinicLoginData.redirect === '/clinic', 'clinic can still sign in on the public site');
+
+  const publicPatientLogin = await fetch(`${BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: patientA.email, password: 'TaskTwo!2345' })
+  });
+  assert(publicPatientLogin.status === 200, 'patient can still sign in on the public site');
+
+  const contactMessage = await fetch(`${BASE}/api/contact`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Public Test',
+      email: `${prefix}.contact@example.com`,
+      subject: 'Hello',
+      message: 'Public contact form still works.'
+    })
+  });
+  assert(contactMessage.status === 201, 'public contact form still works');
+
+  const adminContactRead = await fetch(`${BASE}/api/contact`, {
+    headers: { Cookie: cookieAdmin }
+  });
+  assert(adminContactRead.status === 404, 'admin contact inbox is removed from the public API');
 
   const guestApi = await fetch(`${BASE}/api/appointments`);
   assert(guestApi.status === 401, 'guest cannot use patient APIs');
@@ -258,7 +279,7 @@ async function main() {
     headers: { Cookie: cookieAdmin },
     redirect: 'manual'
   });
-  assert(adminPatientPage.status === 302 && adminPatientPage.headers.get('location') === '/admin', 'admin visiting patient page redirects to admin');
+  assert(adminPatientPage.status === 302 && adminPatientPage.headers.get('location') === ADMIN_APP_URL, 'admin visiting patient page redirects to the admin app');
 
   const clinicPage = await fetch(`${BASE}/clinic`, {
     headers: { Cookie: cookieClinicA },
