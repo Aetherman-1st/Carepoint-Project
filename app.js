@@ -66,6 +66,7 @@ app.use(
         scriptSrc: ["'self'", 'https://code.tidio.co', 'https://*.tidio.co'],
         connectSrc: ["'self'", 'https://*.tidio.co', 'wss://*.tidio.co'],
         imgSrc: ["'self'", 'data:', 'https://*.tidio.co'],
+        mediaSrc: ["'self'", 'https://*.tidio.co'],
         frameSrc: ["'self'", 'https://*.tidio.co']
       }
     }

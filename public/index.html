@@ -5,34 +5,46 @@
   <title>CarePoint | Clinic appointments</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Choose a clinic, request an appointment time, and manage your visit from your CarePoint account.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23FF5622'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/home.css">
   <link rel="stylesheet" href="/motion.css">
   <link rel="stylesheet" href="/chatbot.css">
+  <link rel="stylesheet" href="/home.css">
   <script src="/motion.js" defer></script>
   <script src="/chatbot.js" defer></script>
-  <link rel="stylesheet" href="/design.css">
   <script src="/design.js" defer></script>
 </head>
-<body class="home-page">
+<body class="home-page" id="top">
   <header class="site-header">
     <div class="container header-inner">
-      <a class="brand" href="/">
+      <a class="brand" href="/" aria-label="CarePoint home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>CarePoint</span>
       </a>
+
       <nav class="site-nav" id="siteNav" aria-label="Main navigation">
         <a href="/clinics">Clinics</a>
         <a href="/services">Services</a>
         <a href="/how-it-works">How it works</a>
         <a href="/contact">Contact</a>
       </nav>
+
       <div class="header-actions" id="headerActions">
         <a class="btn btn-ghost" href="/login" id="loginLink">Log in</a>
-        <a class="btn btn-primary" href="/book" id="bookLink">Book an appointment</a>
+        <a class="btn btn-primary edge-header-cta" href="/book" id="bookLink">Book a visit</a>
         <a class="btn btn-outline btn-sm hidden" href="/patient" id="portalLink">My portal</a>
       </div>
+
+      <div class="edge-header-tools" aria-label="CarePoint tools">
+        <a class="edge-header-tool" href="/clinics" aria-label="Search clinics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-4-4"></path>
+          </svg>
+        </a>
+        <span class="edge-header-lang">EN</span>
+      </div>
+
       <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteNav">
         <span></span>
         <span></span>
@@ -41,684 +53,456 @@
     </div>
   </header>
 
-    <main>
-    <section class="hero home-hero">
-      <div class="container hero-grid">
-        <div class="hero-copy" data-reveal>
-          <span class="page-eyebrow">Care, connected</span>
-          <h1>Care that <span class="text-gradient">fits your life.</span></h1>
-          <p>Find a verified clinic, request a time that works, and keep every visit in one calm, private place.</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary js-book" href="/book">
-              Book an appointment
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14"></path>
-                <path d="m13 6 6 6-6 6"></path>
+  <main>
+    <section class="edge-hero" aria-labelledby="heroTitle">
+      <span class="edge-hero-arrow edge-hero-arrow--prev" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+      </span>
+      <span class="edge-hero-arrow edge-hero-arrow--next" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+      </span>
+
+      <div class="edge-hero__inner">
+        <div class="edge-hero__copy">
+          <span class="edge-hero__eyebrow">Care, connected</span>
+          <h1 id="heroTitle">Care, without<br>the guesswork.</h1>
+          <p class="edge-hero__text">Find a clinic, request a time that works, and keep every visit detail in one clear, private place.</p>
+
+          <div class="edge-hero__actions">
+            <a class="btn edge-btn edge-btn--outline js-book" href="/book">
+              <span>Book a visit</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
               </svg>
             </a>
-            <a class="btn btn-outline" href="/clinics">Explore clinics</a>
+            <a class="edge-play" href="/how-it-works">
+              <span class="edge-play__circle" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 6.5v11l9-5.5z"></path></svg>
+              </span>
+              <span>How it works</span>
+            </a>
           </div>
 
-          <div class="cp-hero-proof" aria-label="CarePoint benefits">
-            <span class="cp-proof-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
-                <path d="m9 12 2 2 4-4"></path>
-              </svg>
-              Verified clinic listings
-            </span>
-            <span class="cp-proof-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="4" y="10" width="16" height="11" rx="2"></rect>
-                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-              </svg>
-              Secure account access
-            </span>
-            <span class="cp-proof-chip">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M12 7v5l3 2"></path>
-              </svg>
-              Clear visit status
-            </span>
+          <div class="edge-hero__meta">
+            <span>Verified clinics</span>
+            <span>Private account</span>
+            <span>Clear status</span>
           </div>
-
-          <ol class="hero-flow" aria-label="Booking steps">
-            <li>
-              <span class="hero-flow-number" aria-hidden="true">01</span>
-              <span>Choose a clinic</span>
-            </li>
-            <li>
-              <span class="hero-flow-number" aria-hidden="true">02</span>
-              <span>Request a time</span>
-            </li>
-            <li>
-              <span class="hero-flow-number" aria-hidden="true">03</span>
-              <span>Manage your visit</span>
-            </li>
-          </ol>
         </div>
 
-        <div class="hero-art" data-reveal>
-          <div class="hero-video-composition">
-            <span class="hero-video-pattern" aria-hidden="true"></span>
-            <div class="hero-video-frame">
-              <video
-                id="heroVideo"
-                class="hero-video"
-                autoplay
-                loop
-                muted
-                playsinline
-                preload="auto"
-                poster="/videos/clinic-poster.jpg"
-                disablePictureInPicture
-                disableRemotePlayback
-                controlsList="nodownload noremoteplayback nofullscreen"
-                aria-label="CarePoint clinic"
-                tabindex="-1"
-              >
-                <source src="/videos/clinic.mp4" type="video/mp4">
-              </video>
+        <div class="edge-hero__media">
+          <span class="edge-hero__cross" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5">
+              <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path>
+            </svg>
+          </span>
 
-              <span class="hero-video-cross hero-video-cross--tl" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path>
-                </svg>
-              </span>
-              <span class="hero-video-cross hero-video-cross--br" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path>
-                </svg>
-              </span>
+          <div class="hero-video-frame">
+            <video
+              id="heroVideo"
+              class="edge-hero__video"
+              autoplay
+              loop
+              muted
+              playsinline
+              preload="auto"
+              poster="/videos/clinic-poster.jpg"
+              disablePictureInPicture
+              disableRemotePlayback
+              controlsList="nodownload noremoteplayback nofullscreen"
+              aria-label="CarePoint clinic"
+              tabindex="-1"
+            >
+              <source src="/videos/clinic.mp4" type="video/mp4">
+            </video>
+            <span class="edge-hero__shade" aria-hidden="true"></span>
 
-              <svg class="hero-video-ecg" viewBox="0 0 600 24" preserveAspectRatio="none" aria-hidden="true">
-                <path class="hero-video-ecg-base" d="M0 14h110l10-8 14 16 13-22 12 24 10-10h100l12-8 14 14 12-20 12 20 10-6h101"></path>
-                <path class="hero-video-ecg-path" d="M0 14h110l10-8 14 16 13-22 12 24 10-10h100l12-8 14 14 12-20 12 20 10-6h101"></path>
-                <path class="hero-video-ecg-sweep" d="M0 14h110l10-8 14 16 13-22 12 24 10-10h100l12-8 14 14 12-20 12 20 10-6h101"></path>
+            <span class="edge-hero__ecg" aria-hidden="true">
+              <svg viewBox="0 0 600 80" preserveAspectRatio="none">
+                <path class="edge-ecg-base" d="M0 46h126l12-16 18 34 16-52 18 62 14-28h120l14-12 16 24 14-38 16 38 12-12h146"></path>
+                <path class="edge-ecg-path" d="M0 46h126l12-16 18 34 16-52 18 62 14-28h120l14-12 16 24 14-38 16 38 12-12h146"></path>
               </svg>
+            </span>
 
-              <span class="hero-video-label">
-                <span class="hero-video-label-mark" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path>
-                  </svg>
-                </span>
-                <span>CarePoint</span>
-              </span>
-            </div>
-
-            <div class="cp-float-card cp-float-card--visit" aria-hidden="true">
-              <span class="cp-float-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                  <path d="M16 3v4M8 3v4M3 11h18"></path>
-                  <path d="m9 16 2 2 4-4"></path>
-                </svg>
-              </span>
-              <div>
-                <strong>Visit request</strong>
-                <span>Clinic review in progress</span>
-              </div>
-            </div>
-
-            <div class="cp-float-card cp-float-card--private" aria-hidden="true">
-              <span class="cp-float-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
-                  <path d="m9 12 2 2 4-4"></path>
-                </svg>
-              </span>
-              <div>
-                <strong>Private by default</strong>
-                <span>Your account, your details</span>
-              </div>
-            </div>
-
-            <div class="cp-float-card cp-float-card--care" aria-hidden="true">
-              <span class="cp-float-dot"></span>
-              <div>
-                <strong>One calm place</strong>
-                <span>Book, track, and manage</span>
-              </div>
-            </div>
+            <span class="edge-hero__tag">
+              <i aria-hidden="true"></i>
+              CarePoint directory
+            </span>
           </div>
+
+          <span class="edge-hero__caption">Clinic appointments, made simple.</span>
         </div>
       </div>
     </section>
 
-    <section class="cp-stats-band" id="homeStats" aria-label="CarePoint at a glance">
+    <section class="edge-intro" id="homeStats" aria-labelledby="introTitle">
+      <div class="edge-intro__inner">
+        <div class="edge-intro__copy">
+          <span class="edge-section-number">01/</span>
+          <h2 id="introTitle">Care that starts with clarity.</h2>
+          <p>CarePoint is a calmer way to find a clinic and request a visit. Browse verified listings, choose a time, and follow every update from your account.</p>
+
+          <div class="edge-intro__bottom">
+            <a class="btn edge-btn edge-btn--solid" href="/how-it-works">
+              <span>See how it works</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </a>
+
+            <div class="edge-stats cp-stats-loading" aria-label="CarePoint directory statistics">
+              <div class="edge-stat">
+                <strong id="statClinics">—</strong>
+                <span>Clinics listed</span>
+              </div>
+              <div class="edge-stat">
+                <strong id="statSpecialties">—</strong>
+                <span>Specialties</span>
+              </div>
+              <div class="edge-stat">
+                <strong data-count-to="3">3</strong>
+                <span>Steps to request</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="edge-intro__media">
+          <img src="/images/clinics/carepoint-medical-clinic.jpeg" alt="CarePoint medical clinic reception" loading="lazy" width="840" height="900">
+          <span class="edge-intro__media-line" aria-hidden="true"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="edge-solutions" aria-labelledby="solutionsTitle">
       <div class="container">
-        <div class="cp-stats-panel cp-stats-loading">
-          <div class="cp-stats-intro">
-            <h2>A clearer path to care.</h2>
-            <p>Real directory data, a simple request flow, and one place to follow every visit.</p>
-          </div>
-          <div class="cp-stat">
-            <span class="cp-stat-value" id="statClinics">—</span>
-            <span class="cp-stat-label">Verified clinics</span>
-            <span class="cp-stat-note">Listed in the CarePoint directory</span>
-          </div>
-          <div class="cp-stat">
-            <span class="cp-stat-value" id="statSpecialties">—</span>
-            <span class="cp-stat-label">Specialties listed</span>
-            <span class="cp-stat-note">Availability varies by clinic</span>
-          </div>
-          <div class="cp-stat">
-            <span class="cp-stat-value" data-count-to="3">3</span>
-            <span class="cp-stat-label">Steps to request</span>
-            <span class="cp-stat-note">Choose, request, then follow status</span>
-          </div>
+        <div class="edge-section-head">
+          <span class="edge-section-number">02/</span>
+          <h2 id="solutionsTitle">Explore care services</h2>
+          <a class="edge-line-link" href="/services">
+            <span>All services</span>
+            <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+              <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+            </svg>
+          </a>
+        </div>
+
+        <div class="edge-card-grid" data-reveal-stagger>
+          <a class="edge-card" href="/services" data-reveal>
+            <span class="edge-card__head">
+              <span class="edge-card__title">Primary care</span>
+              <span class="edge-card__rule" aria-hidden="true"></span>
+            </span>
+            <span class="edge-card__art" aria-hidden="true">
+              <svg viewBox="0 0 220 220" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M38 178V84l72-38 72 38v94"></path>
+                <path d="M86 178v-42h48v42"></path>
+                <path d="M86 98h8m32 0h8M86 120h8m32 0h8"></path>
+                <path d="M168 62h20M178 52v20"></path>
+                <circle cx="178" cy="62" r="34" stroke-dasharray="2 7"></circle>
+              </svg>
+            </span>
+            <span class="edge-card__desc">Everyday health, checkups, and ongoing support from clinics in the directory.</span>
+            <span class="edge-card__foot">
+              <span>Explore</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </span>
+          </a>
+
+          <a class="edge-card" href="/services" data-reveal>
+            <span class="edge-card__head">
+              <span class="edge-card__title">Cardiology</span>
+              <span class="edge-card__rule" aria-hidden="true"></span>
+            </span>
+            <span class="edge-card__art" aria-hidden="true">
+              <svg viewBox="0 0 220 220" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M110 178S54 143 54 101c0-23 17-39 37-39 12 0 21 6 27 16 6-10 15-16 27-16 20 0 37 16 37 39 0 42-56 77-72 77Z"></path>
+                <path d="M70 118h24l10-22 14 42 10-20h26"></path>
+                <circle cx="110" cy="110" r="82" stroke-dasharray="2 8"></circle>
+              </svg>
+            </span>
+            <span class="edge-card__desc">Heart health conversations, checks, and specialist guidance.</span>
+            <span class="edge-card__foot">
+              <span>Explore</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </span>
+          </a>
+
+          <a class="edge-card" href="/services" data-reveal>
+            <span class="edge-card__head">
+              <span class="edge-card__title">Dental care</span>
+              <span class="edge-card__rule" aria-hidden="true"></span>
+            </span>
+            <span class="edge-card__art" aria-hidden="true">
+              <svg viewBox="0 0 220 220" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M64 58c18-14 34-5 46-5s28-9 46 5c20 16 18 52 8 83-8 25-20 38-28 35-9-4-7-31-26-31s-17 27-26 31c-8 3-20-10-28-35-10-31-12-67 8-83Z"></path>
+                <path d="M84 70c8-6 16-4 24 0m28 0c8-4 16-6 24 0"></path>
+                <path d="M110 84v54"></path>
+                <circle cx="110" cy="110" r="82" stroke-dasharray="2 8"></circle>
+              </svg>
+            </span>
+            <span class="edge-card__desc">Routine dental visits and practical oral health support.</span>
+            <span class="edge-card__foot">
+              <span>Explore</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </span>
+          </a>
+
+          <a class="edge-card" href="/services" data-reveal>
+            <span class="edge-card__head">
+              <span class="edge-card__title">Dermatology</span>
+              <span class="edge-card__rule" aria-hidden="true"></span>
+            </span>
+            <span class="edge-card__art" aria-hidden="true">
+              <svg viewBox="0 0 220 220" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M44 78c24-19 48 19 72 0s48 19 72 0"></path>
+                <path d="M44 106c24-19 48 19 72 0s48 19 72 0"></path>
+                <path d="M44 134c24-19 48 19 72 0s48 19 72 0"></path>
+                <path d="M44 162c24-19 48 19 72 0s48 19 72 0"></path>
+                <circle cx="132" cy="72" r="7"></circle>
+                <path d="M164 58v18M155 67h18"></path>
+                <circle cx="110" cy="110" r="82" stroke-dasharray="2 8"></circle>
+              </svg>
+            </span>
+            <span class="edge-card__desc">Skin, hair, and nail concerns with specialist guidance.</span>
+            <span class="edge-card__foot">
+              <span>Explore</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </span>
+          </a>
+
+          <a class="edge-card" href="/services" data-reveal>
+            <span class="edge-card__head">
+              <span class="edge-card__title">Pediatrics</span>
+              <span class="edge-card__rule" aria-hidden="true"></span>
+            </span>
+            <span class="edge-card__art" aria-hidden="true">
+              <svg viewBox="0 0 220 220" fill="none" stroke="currentColor" stroke-width="1.2">
+                <circle cx="110" cy="72" r="30"></circle>
+                <path d="M74 178v-24c0-21 16-38 36-38s36 17 36 38v24"></path>
+                <path d="M92 70h.1M128 70h.1M100 86c6 5 14 5 20 0"></path>
+                <path d="M62 130c-14 8-18 24-10 36m116-36c14 8 18 24 10 36"></path>
+                <circle cx="110" cy="110" r="82" stroke-dasharray="2 8"></circle>
+              </svg>
+            </span>
+            <span class="edge-card__desc">Care for children and support for growing families.</span>
+            <span class="edge-card__foot">
+              <span>Explore</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </span>
+          </a>
+
+          <a class="edge-card" href="/services" data-reveal>
+            <span class="edge-card__head">
+              <span class="edge-card__title">Mental health</span>
+              <span class="edge-card__rule" aria-hidden="true"></span>
+            </span>
+            <span class="edge-card__art" aria-hidden="true">
+              <svg viewBox="0 0 220 220" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M110 32c34 0 60 26 60 59 0 24-14 45-35 55v28H85v-28c-21-10-35-31-35-55 0-33 26-59 60-59Z"></path>
+                <path d="M94 91c0-9 7-16 16-16s16 7 16 16-7 16-16 16v12"></path>
+                <path d="M110 140h.1"></path>
+                <circle cx="110" cy="110" r="82" stroke-dasharray="2 8"></circle>
+              </svg>
+            </span>
+            <span class="edge-card__desc">A calm first step toward the right kind of support.</span>
+            <span class="edge-card__foot">
+              <span>Explore</span>
+              <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+                <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+              </svg>
+            </span>
+          </a>
         </div>
       </div>
     </section>
 
-    <section class="section" aria-labelledby="specialtiesTitle">
+    <section class="edge-notes" aria-labelledby="notesTitle">
+      <h2 class="visually-hidden" id="notesTitle">Care notes</h2>
       <div class="container">
-        <div class="section-head" data-reveal>
-          <div>
-            <span class="page-eyebrow">Care specialties</span>
-            <h2 id="specialtiesTitle">Find the right kind of care.</h2>
-            <p>Browse the categories clinics list on CarePoint. Availability varies by clinic and location.</p>
-          </div>
-          <a class="section-more" href="/services">View all services</a>
-        </div>
-
-        <div class="cp-specialty-grid" data-reveal-stagger>
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 21V7l8-4 8 4v14"></path>
-                  <path d="M9 21v-4h6v4"></path>
-                  <path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">01</span>
+        <div class="edge-notes__grid" data-reveal-stagger>
+          <a class="edge-note" href="/how-it-works" data-reveal>
+            <span class="edge-note__image">
+              <img src="/videos/clinic-poster.jpg" alt="Clinician reviewing visit notes" loading="eager" width="640" height="400">
             </span>
-            <span>
-              <h3>Primary care</h3>
-              <p>Everyday health, checkups, and ongoing support.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
+            <span class="edge-note__meta">Guide · First visit</span>
+            <span class="edge-note__title">How to prepare for your first clinic visit</span>
+            <span class="edge-note__text">A short checklist for the details worth having ready before you send a request.</span>
           </a>
 
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 5.5c-1.5-2-4.5-2.3-6.5-.5C3.2 7 3.2 10 5.3 12.1L12 19l6.7-6.9c2.1-2.1 2.1-5.1 0-7.1-2-1.8-5-1.5-6.7.5Z"></path>
-                  <path d="M8 12h2l1-2 2 4 1-2h2"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">02</span>
+          <a class="edge-note" href="/how-it-works" data-reveal>
+            <span class="edge-note__image">
+              <img src="/images/clinics/carepoint-medical-clinic.jpeg" alt="CarePoint clinic reception" loading="eager" width="640" height="400">
             </span>
-            <span>
-              <h3>Cardiology</h3>
-              <p>Heart health conversations and specialist care.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
+            <span class="edge-note__meta">Guide · Booking</span>
+            <span class="edge-note__title">What happens after you request a time</span>
+            <span class="edge-note__text">Follow the request from clinic review to confirmation without chasing updates.</span>
           </a>
 
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">03</span>
-            </span>
-            <span>
-              <h3>Dental care</h3>
-              <p>Routine dental visits and oral health support.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
-          </a>
-
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="9"></circle>
-                  <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                  <path d="M9 9h.01M15 9h.01"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">04</span>
-            </span>
-            <span>
-              <h3>Dermatology</h3>
-              <p>Skin, hair, and nail concerns with specialist guidance.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
-          </a>
-
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="8" r="4"></circle>
-                  <path d="M5 21v-2a7 7 0 0 1 14 0v2"></path>
-                  <path d="M9 13h.01M15 13h.01"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">05</span>
-            </span>
-            <span>
-              <h3>Pediatrics</h3>
-              <p>Care for children and support for growing families.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
-          </a>
-
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3Z"></path>
-                  <path d="M9 22h6"></path>
-                  <path d="M12 7v5"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">06</span>
-            </span>
-            <span>
-              <h3>Mental health</h3>
-              <p>A calm first step toward the right support.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
-          </a>
-
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">07</span>
-            </span>
-            <span>
-              <h3>Eye care</h3>
-              <p>Vision checks and eye health appointments.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
-          </a>
-
-          <a class="cp-specialty-card" href="/services" data-reveal>
-            <span class="cp-specialty-top">
-              <span class="cp-specialty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="9" r="5"></circle>
-                  <path d="M12 14v7"></path>
-                  <path d="M8.5 21h7"></path>
-                </svg>
-              </span>
-              <span class="cp-specialty-index">08</span>
-            </span>
-            <span>
-              <h3>Women’s health</h3>
-              <p>Support through every stage, in one private place.</p>
-              <span class="cp-specialty-link">Explore service <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
-            </span>
-          </a>
-        </div>
-
-        <div class="cp-section-foot" data-reveal>
-          <p>Clinic listings and available specialties are managed by the clinics themselves.</p>
-          <a class="btn btn-outline btn-sm" href="/clinics">Browse the directory</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-soft" aria-labelledby="connectedTitle">
-      <div class="container cp-connected">
-        <div class="cp-connected-copy" data-reveal>
-          <span class="page-eyebrow">Connected care</span>
-          <h2 id="connectedTitle">One calm place for every step.</h2>
-          <p>From finding a clinic to checking the status of a request, CarePoint keeps the details together and the next step visible.</p>
-
-          <ul class="cp-check-list">
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="m8.5 12 2.5 2.5 4.5-5"></path>
-              </svg>
-              <div>
-                <strong>A clearer request flow</strong>
-                <span>Pick a clinic, choose a time, and send one clear request.</span>
-              </div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="m8.5 12 2.5 2.5 4.5-5"></path>
-              </svg>
-              <div>
-                <strong>Status you can follow</strong>
-                <span>Open your portal to see what is pending, confirmed, or complete.</span>
-              </div>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="m8.5 12 2.5 2.5 4.5-5"></path>
-              </svg>
-              <div>
-                <strong>Privacy in the experience</strong>
-                <span>Your account keeps your details and visit activity in one place.</span>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div class="cp-connected-visual" data-reveal>
-          <div class="cp-ui-stack">
-            <div class="cp-ui-card cp-ui-card--main">
-              <div class="cp-ui-head">
-                <div class="cp-ui-title">
-                  <span class="cp-ui-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                      <path d="M16 3v4M8 3v4M3 11h18"></path>
-                    </svg>
-                  </span>
-                  <div>
-                    <strong>Your visit request</strong>
-                    <span>One clear place to follow it</span>
-                  </div>
-                </div>
-                <span class="cp-ui-badge">Pending review</span>
-              </div>
-              <div class="cp-ui-row">
-                <span>Requested time</span>
-                <strong>Selected in your booking</strong>
-              </div>
-              <div class="cp-ui-row">
-                <span>Clinic</span>
-                <strong>Verified listing</strong>
-              </div>
-              <div class="cp-ui-progress" aria-hidden="true"><span></span></div>
-            </div>
-
-            <div class="cp-ui-card cp-ui-card--float">
-              <div class="cp-ui-head">
-                <div class="cp-ui-title">
-                  <span class="cp-ui-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
-                      <path d="m9 12 2 2 4-4"></path>
-                    </svg>
-                  </span>
-                  <div>
-                    <strong>Account protected</strong>
-                    <span>Private access to your visits</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" aria-labelledby="stepsTitle">
-      <div class="container">
-        <div class="section-head" data-reveal>
-          <div>
-            <span class="page-eyebrow">Simple by design</span>
-            <h2 id="stepsTitle">Three steps. No guesswork.</h2>
-            <p>A clear path from choosing care to following your request.</p>
-          </div>
-          <a class="section-more" href="/how-it-works">See how it works</a>
-        </div>
-
-        <ol class="cp-timeline" data-reveal-stagger>
-          <li class="cp-timeline-item" data-reveal>
-            <span class="cp-timeline-number" aria-hidden="true">01</span>
-            <h3>Choose a clinic</h3>
-            <p>Browse verified clinic listings and find the care category that fits.</p>
-          </li>
-          <li class="cp-timeline-item" data-reveal>
-            <span class="cp-timeline-number" aria-hidden="true">02</span>
-            <h3>Request a time</h3>
-            <p>Pick a date and time, add a reason if you want, and send the request.</p>
-          </li>
-          <li class="cp-timeline-item" data-reveal>
-            <span class="cp-timeline-number" aria-hidden="true">03</span>
-            <h3>Follow the status</h3>
-            <p>Open your portal to see updates, manage the visit, or cancel if plans change.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <div class="cp-marquee" aria-hidden="true">
-      <div class="cp-marquee-track">
-        <div class="cp-marquee-group">
-          <span class="cp-marquee-item">Primary care</span>
-          <span class="cp-marquee-item">Cardiology</span>
-          <span class="cp-marquee-item">Dental care</span>
-          <span class="cp-marquee-item">Dermatology</span>
-          <span class="cp-marquee-item">Pediatrics</span>
-          <span class="cp-marquee-item">Mental health</span>
-          <span class="cp-marquee-item">Eye care</span>
-          <span class="cp-marquee-item">Women’s health</span>
-        </div>
-        <div class="cp-marquee-group">
-          <span class="cp-marquee-item">Primary care</span>
-          <span class="cp-marquee-item">Cardiology</span>
-          <span class="cp-marquee-item">Dental care</span>
-          <span class="cp-marquee-item">Dermatology</span>
-          <span class="cp-marquee-item">Pediatrics</span>
-          <span class="cp-marquee-item">Mental health</span>
-          <span class="cp-marquee-item">Eye care</span>
-          <span class="cp-marquee-item">Women’s health</span>
-        </div>
-      </div>
-    </div>
-
-    <section class="cp-promise" aria-labelledby="promiseTitle">
-      <div class="container">
-        <div class="cp-promise-head" data-reveal>
-          <span class="page-eyebrow">Our promise</span>
-          <h2 id="promiseTitle">Care should feel clear.</h2>
-          <p>Not another maze of forms. Not another unclear status. Just a calmer path to the care you need.</p>
-        </div>
-        <div class="cp-promise-grid" data-reveal-stagger>
-          <div class="cp-promise-card" data-reveal>
-            <blockquote>“Clarity is part of care.”</blockquote>
-            <cite>CarePoint promise</cite>
-          </div>
-          <div class="cp-promise-card" data-reveal>
-            <blockquote>“Privacy is part of the experience.”</blockquote>
-            <cite>CarePoint promise</cite>
-          </div>
-          <div class="cp-promise-card" data-reveal>
-            <blockquote>“Your next step stays visible.”</blockquote>
-            <cite>CarePoint promise</cite>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" aria-labelledby="faqTitle">
-      <div class="container cp-faq">
-        <div class="cp-faq-wrap">
-          <div class="cp-faq-intro" data-reveal>
-            <span class="page-eyebrow">Questions</span>
-            <h2 id="faqTitle">A few things to know.</h2>
-            <p>Clear answers before you start. If you need something else, the care team is one message away.</p>
-            <a class="btn btn-outline" href="/contact">Contact CarePoint</a>
-          </div>
-          <div class="faq-list" data-reveal>
-            <details class="faq-item" open>
-              <summary>Do I need an account to book?</summary>
-              <p>Yes. Create an account or log in before sending a request so you can follow it in My portal.</p>
-            </details>
-            <details class="faq-item">
-              <summary>Can I change or cancel a visit?</summary>
-              <p>Yes. Open My portal to manage a request that has not been completed. You can cancel it or check the current status.</p>
-            </details>
-            <details class="faq-item">
-              <summary>What happens after I send a request?</summary>
-              <p>The clinic reviews the requested time and updates the status. You can follow every change from your account.</p>
-            </details>
-            <details class="faq-item">
-              <summary>Are all clinic details verified?</summary>
-              <p>Clinic listings are managed by the clinics themselves and shown in the directory. Availability and specialties can vary.</p>
-            </details>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-soft" aria-labelledby="exploreTitle">
-      <div class="container">
-        <div class="home-links-head" data-reveal>
-          <span class="page-eyebrow">Explore CarePoint</span>
-          <h2 id="exploreTitle">Where would you like to go?</h2>
-          <p>Find a clinic, learn how booking works, or get in touch with the care team.</p>
-        </div>
-
-        <div class="home-link-grid" data-reveal-stagger>
-          <a class="home-link-card" href="/clinics" data-reveal>
-            <span class="home-link-top">
-              <span class="home-link-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 21V7l8-4 8 4v14"></path>
-                  <path d="M9 21v-4h6v4"></path>
-                  <path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01"></path>
-                </svg>
-              </span>
-              <span class="home-link-index" aria-hidden="true">01</span>
-            </span>
-            <span class="home-link-body">
-              <h3>Clinics</h3>
-              <p>Browse verified listings and start a visit request with the clinic you need.</p>
-            </span>
-            <span class="home-link-footer">
-              <span>View clinics</span>
-              <svg class="home-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14"></path>
-                <path d="m13 6 6 6-6 6"></path>
+          <a class="edge-note" href="/clinics" data-reveal>
+            <span class="edge-note__image edge-note__image--art" aria-hidden="true">
+              <svg viewBox="0 0 640 400" fill="none">
+                <rect width="640" height="400" fill="#f2f2ef"></rect>
+                <path d="M92 102h210v152H92zM114 128h68v18h-68zM114 162h122v10H114zM114 184h94v10h-94zM114 206h108v10H114z" stroke="#434b51" stroke-width="1.4"></path>
+                <path d="M338 102h210v152H338zM360 128h68v18h-68zM360 162h122v10H360zM360 184h94v10h-94zM360 206h108v10H360z" stroke="#434b51" stroke-width="1.4"></path>
+                <path d="M92 296h456" stroke="#434b51" stroke-width="1.4"></path>
+                <path d="M130 330h72M285 330h70M440 330h70" stroke="#ff5622" stroke-width="8"></path>
+                <circle cx="500" cy="78" r="24" stroke="#ff5622" stroke-width="1.4"></circle>
+                <path d="M500 64v20M490 74h20" stroke="#ff5622" stroke-width="1.4"></path>
               </svg>
             </span>
+            <span class="edge-note__meta">Directory · Clinics</span>
+            <span class="edge-note__title">Choosing a clinic that fits your needs</span>
+            <span class="edge-note__text">Compare specialties, locations, and the details clinics share in the directory.</span>
           </a>
 
-          <a class="home-link-card" href="/how-it-works" data-reveal>
-            <span class="home-link-top">
-              <span class="home-link-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                  <line x1="16" y1="3" x2="16" y2="7"></line>
-                  <line x1="8" y1="3" x2="8" y2="7"></line>
-                  <line x1="3" y1="10" x2="21" y2="10"></line>
-                  <path d="m9 15 2 2 4-4"></path>
-                </svg>
-              </span>
-              <span class="home-link-index" aria-hidden="true">02</span>
-            </span>
-            <span class="home-link-body">
-              <h3>How it works</h3>
-              <p>Follow the three simple steps from choosing a clinic to checking your request.</p>
-            </span>
-            <span class="home-link-footer">
-              <span>See the process</span>
-              <svg class="home-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14"></path>
-                <path d="m13 6 6 6-6 6"></path>
+          <a class="edge-note" href="/patient" data-reveal>
+            <span class="edge-note__image edge-note__image--art" aria-hidden="true">
+              <svg viewBox="0 0 640 400" fill="none">
+                <rect width="640" height="400" fill="#f2f2ef"></rect>
+                <rect x="92" y="86" width="456" height="228" stroke="#434b51" stroke-width="1.4"></rect>
+                <path d="M92 142h456M170 86v228M292 86v228M414 86v228" stroke="#434b51" stroke-width="1.4"></path>
+                <path d="M234 214l22 22 44-52" stroke="#ff5622" stroke-width="4"></path>
+                <path d="M356 214l22 22 44-52" stroke="#ff5622" stroke-width="4"></path>
+                <path d="M128 120h14M206 120h14M328 120h14M450 120h14" stroke="#434b51" stroke-width="4"></path>
+                <circle cx="320" cy="344" r="4" fill="#ff5622"></circle>
               </svg>
             </span>
-          </a>
-
-          <a class="home-link-card" href="/contact" data-reveal>
-            <span class="home-link-top">
-              <span class="home-link-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                  <polyline points="3 7 12 13 21 7"></polyline>
-                </svg>
-              </span>
-              <span class="home-link-index" aria-hidden="true">03</span>
-            </span>
-            <span class="home-link-body">
-              <h3>Contact</h3>
-              <p>Send a question about a clinic, an appointment, or your account.</p>
-            </span>
-            <span class="home-link-footer">
-              <span>Send a message</span>
-              <svg class="home-link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14"></path>
-                <path d="m13 6 6 6-6 6"></path>
-              </svg>
-            </span>
+            <span class="edge-note__meta">Account · Visits</span>
+            <span class="edge-note__title">Keeping every visit detail in one place</span>
+            <span class="edge-note__text">Use My portal to check status, review a request, or cancel when plans change.</span>
           </a>
         </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="container">
-        <div class="cp-cta-band" data-reveal>
-          <div class="cp-cta-inner">
-            <div>
-              <span class="page-eyebrow">Ready when you are</span>
-              <h2>Your next visit starts here.</h2>
-              <p>Find a clinic, request a time, and keep the whole visit in one calm place.</p>
-            </div>
-            <div class="cp-cta-actions">
-              <a class="btn btn-primary" href="/book">Book an appointment</a>
-              <a class="btn btn-outline" href="/clinics">Explore clinics</a>
-            </div>
-          </div>
+    <section class="edge-cta" aria-labelledby="ctaTitle">
+      <div class="edge-cta__inner">
+        <div class="edge-cta__copy">
+          <span class="edge-section-number">03/</span>
+          <h2 id="ctaTitle">Your next visit<br>starts here.</h2>
+          <p>Find a clinic, request a time, and keep the whole visit in one clear place.</p>
+          <a class="btn edge-btn edge-btn--solid js-book" href="/book">
+            <span>Book a visit</span>
+            <svg viewBox="0 0 25.7 25.7" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+              <path d="M0 12.4h23.8M15.5 4l8.3 8.4-8.3 8.3"></path>
+            </svg>
+          </a>
         </div>
+
+        <div class="edge-cta__media">
+          <img src="/videos/clinic-poster.jpg" alt="CarePoint clinician reviewing visit notes" loading="eager" width="960" height="720">
+        </div>
+
+        <a class="edge-cta__top" href="#top" aria-label="Back to top">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 19V5"></path>
+            <path d="m5 12 7-7 7 7"></path>
+          </svg>
+        </a>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="container cp-footer-grid">
-      <div class="cp-footer-copy">
-        <a class="brand" href="/">
+    <div class="container">
+      <div class="edge-footer__grid">
+        <div class="edge-footer__reach">
+          <h2>Reach us</h2>
+          <span class="edge-footer__rule" aria-hidden="true"></span>
+          <a class="edge-footer__contact" href="/contact">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14"></rect>
+              <path d="m3 7 9 6 9-6"></path>
+            </svg>
+            Contact CarePoint
+          </a>
+          <a class="edge-footer__contact" href="/book">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16"></rect>
+              <path d="M16 3v4M8 3v4M3 11h18"></path>
+            </svg>
+            Book a visit
+          </a>
+        </div>
+
+        <nav class="edge-footer__col" aria-label="Sitemap">
+          <h2>Sitemap</h2>
+          <span class="edge-footer__rule" aria-hidden="true"></span>
+          <a href="/clinics">Clinics</a>
+          <a href="/services">Services</a>
+          <a href="/how-it-works">How it works</a>
+          <a href="/contact">Contact</a>
+          <a href="/login">Log in</a>
+          <a href="/signup">Create account</a>
+        </nav>
+
+        <nav class="edge-footer__col" aria-label="Services">
+          <h2>Services</h2>
+          <span class="edge-footer__rule" aria-hidden="true"></span>
+          <a href="/services">Primary care</a>
+          <a href="/services">Cardiology</a>
+          <a href="/services">Dental care</a>
+          <a href="/services">Dermatology</a>
+          <a href="/services">Pediatrics</a>
+          <a href="/services">Mental health</a>
+        </nav>
+
+        <div class="edge-footer__col" aria-label="Account">
+          <h2>Account</h2>
+          <span class="edge-footer__rule" aria-hidden="true"></span>
+          <a href="/book">Book a visit</a>
+          <a href="/patient">My portal</a>
+          <a href="/login">Log in</a>
+          <a href="/signup">Create account</a>
+        </div>
+      </div>
+
+      <div class="edge-footer__bar">
+        <a class="brand" href="/" aria-label="CarePoint home">
           <span class="brand-mark" aria-hidden="true"></span>
           <span>CarePoint</span>
         </a>
-        <p>Book and manage clinic appointments in one calm, private place.</p>
-        <span class="cp-footer-badge">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
-            <path d="m9 12 2 2 4-4"></path>
-          </svg>
-          Private by default
-        </span>
+        <div class="edge-footer__legal">
+          <a href="/contact">Contact</a>
+          <span aria-hidden="true">•</span>
+          <a href="/how-it-works">How it works</a>
+        </div>
+        <div class="edge-footer__tools">
+          <a href="/clinics" aria-label="Browse clinics">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 21V7l8-4 8 4v14M9 21v-4h6v4"></path>
+            </svg>
+          </a>
+          <a href="/book" aria-label="Book a visit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16"></rect>
+              <path d="M16 3v4M8 3v4M3 11h18"></path>
+            </svg>
+          </a>
+          <a href="/patient" aria-label="Open my portal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="4"></circle>
+              <path d="M5 21v-2a7 7 0 0 1 14 0v2"></path>
+            </svg>
+          </a>
+        </div>
       </div>
-      <nav class="cp-footer-col" aria-label="Explore">
-        <h2>Explore</h2>
-        <a href="/clinics">Clinics</a>
-        <a href="/services">Services</a>
-        <a href="/how-it-works">How it works</a>
-        <a href="/contact">Contact</a>
-      </nav>
-      <nav class="cp-footer-col" aria-label="Account">
-        <h2>Account</h2>
-        <a href="/book">Book a visit</a>
-        <a href="/login">Log in</a>
-        <a href="/signup">Create account</a>
-        <a href="/patient">My portal</a>
-      </nav>
-      <div class="cp-footer-col" aria-label="Trust">
-        <h2>Trust</h2>
-        <span>Verified clinic listings</span>
-        <span>Encrypted account access</span>
-        <span>Clear appointment status</span>
+
+      <div class="edge-footer__bottom">
+        <p>© 2026 CarePoint. All rights reserved.</p>
+        <p>For medical emergencies, contact local emergency services.</p>
       </div>
-    </div>
-    <div class="container cp-footer-bottom">
-      <p>© 2026 CarePoint. All rights reserved.</p>
-      <p>For medical emergencies, contact local emergency services.</p>
     </div>
   </footer>
 
