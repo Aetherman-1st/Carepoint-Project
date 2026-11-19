@@ -15,6 +15,17 @@ function positiveId(value) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+function normalizeImagePath(value) {
+  const raw = cleanText(value, 500);
+  if (!raw) return null;
+  if (!/^\/[A-Za-z0-9._~/-]+$/.test(raw) || raw.startsWith('//') || raw.includes('..')) {
+    const error = new Error('Clinic image must be a local path starting with /.');
+    error.status = 400;
+    throw error;
+  }
+  return raw;
+}
+
 router.use(requireClinic);
 
 router.get('/profile', async (req, res) => {
@@ -66,10 +77,16 @@ router.put('/profile', async (req, res) => {
   const city = cleanText(body.city, 120);
   const phone = cleanText(body.phone, 60);
   const description = cleanText(body.description, 2000);
-  const imageUrl = cleanText(body.image_url, 500);
 
   if (!name) {
     return res.status(400).json({ message: 'Clinic name is required.' });
+  }
+
+  let imageUrl;
+  try {
+    imageUrl = normalizeImagePath(body.image_url);
+  } catch (err) {
+    return res.status(err.status || 400).json({ message: err.message });
   }
 
   try {

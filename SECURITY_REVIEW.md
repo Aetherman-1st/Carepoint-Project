@@ -1,115 +1,76 @@
 # CarePoint Security Review
 
-## Overview
-This document summarizes the security controls and considerations for the CarePoint application, covering authentication, session management, input validation, rate limiting, CSP, secrets handling, and dependency security.
-
----
+Updated: 2026-11-19
 
 ## 1. Authentication
 
-### Passwords
-- **Bcrypt cost**: 12 (configured in `lib/auth.js` and used by all password hashing).
-- **Minimum length**: 8 characters enforced on signup and password‑change.
-- **Password reset**: Uses time‑limited `password_reset_codes` table; codes are single‑use and expire after 15 minutes (configurable via `TWO_FACTOR_CODE_MINUTES`).
-- **Email verification**: New users must verify email before login; unverified accounts are blocked with a clear error (`email_not_verified`).
-- **Login errors**: Distinct error messages (`email_not_found`, `wrong_password`, `email_not_verified`, `account_banned`) prevent enumeration attacks beyond rate‑limited attempts.
+- Passwords are hashed with bcrypt cost 12; signup and password change require at least 8 characters.
+- Login and signup/reset codes are single-use, expire after 10 minutes by default, and use hashed values.
+- Public login returns the same `401 Invalid email or password.` response for an unknown email and a wrong password. `signup/resend-verification` does the same.
+- Banned, unverified and admin-account states are only disclosed after the password has matched.
+- Admin sign-in is separate, requires an `admin_members` row, and requires TOTP MFA at AAL2.
+- Sensitive admin actions require password re-entry; the step-up window is 5 minutes.
+- Admin forgot/reset password pages are available at the admin origin.
 
-### Two‑factor / Remember‑me
-- **Remember‑me**: 30‑day persistent cookie; cookie contains `session_version` to invalidate on password reset or logout‑all.
-- **Session versioning**: `users.session_version` increments on password reset, logout‑all, or ban-related changes, forcing re‑authentication.
-- **Secure cookies**: `session.js` sets `httpOnly`, `secure` (production only), and `sameSite=strict` flags.
+## 2. Sessions and CSRF
 
-### Login enumeration protection
-- Rate limiter (`100 requests per 15 minutes` per IP) limits failed login attempts.
-- Login endpoint (`routes/login.js`) returns generic `Invalid credentials` after rate limit is exceeded, reducing enumeration risk.
+- The public app uses an HMAC-signed `cp_session` cookie with `HttpOnly` and `SameSite=Lax`; `Secure` is set in production.
+- Session lifetime is 8 hours, or 30 days with remember-me. `users.session_version` invalidates cookies after password reset, logout and ban changes.
+- State-changing cookie requests must have a same-host `Origin` or `Referer`; the configured admin origin is also allowed. Bearer-token admin API calls skip this check because browsers do not attach bearer tokens automatically.
+- Every response includes an `X-Request-Id` trace header; final error responses also include `traceId`.
 
-### Protected super‑admin
-- `isAdminEmail()` in `lib/auth.js` checks if `email` matches the configured `ADMIN_EMAIL` environment variable; any attempt to ban/delete the protected admin account is rejected with a `400` error.
+## 3. Authorization and Data Access
 
----
+- Public API authorization is enforced server-side per endpoint and per record; clinics are limited to their own clinic, doctors and appointments.
+- Clinics receive patient name, age, phone, conditions and medications for their own appointments. Patient email is not returned to clinics.
+- Admin actions go through Worker endpoints that verify the Supabase user, require AAL2, require `admin_members`, and enforce appointment transitions.
+- Admin accounts linked through `admin_members` are protected from ban/delete in both the Worker endpoint and the RLS migration.
+- Appointment status changes are limited to Pending -> Confirmed/Cancelled and Confirmed -> Completed/Cancelled. Patients cannot cancel past appointments.
+- The `is_admin_aal2` database function is live and tested. The full RLS policy rewrite and database audit/status triggers are authored in `supabase/security.sql` but could not be applied because the application DB role does not own the admin tables. Apply that migration as `postgres` to complete DB-level enforcement.
 
-## 2. Session Management
+## 4. Input Validation and Uploads
 
-- **Signed cookie**: `cp_session` signed with `npm's` `cookie-parser` secret (set via `SESSION_SECRET` env var).
-- **TTL**: Server‑side 8‑hour TTL plus browser‑session cookie; `session_version` invalidation provides additional invalidation path.
-- **Logout**: `GET /logout` clears the cookie and marks `last_login_at`; `logout-all` increments `session_version`.
-- **Concurrent session limit**: Not enforced in v1; session version handles password‑reset invalidation.
+- SQL uses parameterized `pg` queries.
+- Dates use `YYYY-MM-DD`, times use `HH:MM`, appointment reason is limited to 500 characters, and past booking/rescheduling is rejected.
+- Clinic image URLs must be local paths starting with `/`; external URLs and `..` traversal are rejected.
+- Uploads are limited to JPG/PNG/PDF, 2 MB, with extension, MIME and signature checks. Files are stored in Postgres and downloaded only by their owner.
+- There is no antivirus engine on Cloudflare Workers. Files use the honest scan result `structural_pass_no_av`.
 
----
+## 5. Rate Limiting
 
-## 3. Input Validation & Sanitisation
+- Auth: 30 requests/minute per IP and 10/minute per email.
+- Contact: 5 requests/minute per IP and 5/minute per email.
+- Uploads: 20/minute per user through a durable Worker rate-limit binding.
+- Non-Worker local runs also use a 100 requests/15-minute global limiter.
 
-- **All user inputs** are validated on the server before any DB operation.
-- **Email format** checked with regex; trimmed and lower‑cased.
-- **Passwords**: minimum 8 characters, bcrypt cost 12.
-- **Date/time**: ISO‑format `YYYY‑MM‑DD` and `HH:MM` validated; past dates rejected.
-- **Reason/text**: trimmed and sliced to 500 characters.
-- **Visit type**: only `online` or `in_person` accepted.
-- **SQL injection**: Uses `pg` parameterized queries throughout; no raw string concatenation in queries.
-- **XSS**: HTML output escaped by EJS (if used) or plain JSON responses; no `innerHTML` from untrusted data in the frontend.
+## 6. Headers and CSP
 
----
+- The public app uses Helmet CSP with allowances only for CarePoint and Tidio.
+- The admin app sets a strict CSP, `frame-ancestors 'none'`, `nosniff`, no-referrer, HSTS, and `Cache-Control: no-store` through `admin-app/_headers`.
+- Scripts are external files; inline event handlers are not used.
 
-## 4. Rate Limiting & CSRF
+## 7. Audit Logging
 
-- **Global rate limiter**: 100 requests per 15 minutes per IP (configured in `server.js`).
-- **Per‑endpoint**: No finer‑grained limits in v1; the global limiter protects against abuse.
-- **CSRF**: Not yet implemented; since the API is primarily accessed via same‑site browser flows and signed cookies, risk is lower. Consider adding CSRF tokens for state‑changing POST/PATCH requests in a future release.
+- `audit_logs` records public login failures, lockouts, successful logins, password changes and resets.
+- Admin Worker endpoints record bans, unbans, deletes, appointment status changes and contact replies.
+- Database triggers for direct admin-table changes are authored in `supabase/security.sql` but remain blocked by table ownership.
+- Audit details avoid passwords, codes, tokens and full request bodies.
 
----
+## 8. Secrets and Configuration
 
-## 5. Content Security Policy (CSP)
+- `.env` and `.dev.vars` are not committed.
+- Production secrets must be set in Cloudflare, including `SESSION_SECRET`, SMTP credentials, Supabase values and Zoom values.
+- The Supabase publishable key is public by design. No service-role key or Supabase management token is stored in the repository.
+- Hosted Supabase Auth settings (SMTP, redirect URLs, JWT lifetime, rate limits) were not changed because management access is unavailable.
 
-- No CSP meta tag is currently set in the HTML templates. For production, add a restrictive CSP such as:
+## 9. Dependency Notes
 
-```html
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'"/>
-```
+- Run `npm audit` and `npm test` before each release.
+- Current automated tests cover safe uploads, CSRF origin checks and trace headers.
 
-- The application does not embed user‑generated HTML, reducing injection risk.
+## 10. Known Limitations
 
----
-
-## 6. Secrets & Environment
-
-- **`.env`** is git‑ignored (added in commit `74d1d1a`).
-- **Production secrets** (SMTP passwords, session secret, JWT keys) must be set in the hosting environment, never committed.
-- **Resend `MAIL_FROM`**: Must use a verified domain at `https://resend.com/domains`; otherwise emails to arbitrary recipients will fail (test sender restriction).
-- **No hard‑coded secrets** in source files; all sensitive values read from `process.env`.
-
----
-
-## 7. Dependency Audit
-
-| Package | Version | Notes |
-|---------|---------|-------|
-| `bcrypt` | `6.0.0` | Cost 12 used; up‑to‑date. |
-| `helmet` | `7.0.0` | Added; sets security headers (X‑Content‑Type‑Options, X‑Frame‑Options, etc.). |
-| `express-rate-limit` | `7.1.0` | Added; 100 req/15min per IP. |
-| `nodemailer` | `10.1.7` | Configured for Resend; test sender limited. |
-| `pg` | `8.23.1` | PostgreSQL driver; parameterized queries. |
-| Others | see `package.json` | — |
-
-Run `npm audit` regularly; the recent run reported 1 high severity issue (outside core dependencies; consider `npm audit fix`).
-
----
-
-## 8. Audit Log (planned)
-
-- An `audit_logs` table exists in the schema but is not yet populated by application code. Future work: log significant events (login, password change, account ban/create, clinic account CRUD) with user ID, timestamp, and action.
-
----
-
-## 9. Recommendations for v2
-
-1. Add CSP header via Helmet or middleware.
-2. Implement CSRF protection for state‑changing requests.
-3. Add per‑endpoint rate limits (auth, password reset, clinic account creation).
-4. Populate `audit_logs` table on relevant events.
-5. Review third‑party dependencies for known CVEs before each release.
-6. Enforce HTTPS everywhere; ensure `secure` flag on cookies in production.
-7. Add content‑type options `nosniff` and frame options `deny` via Helmet (already included).
-
----
-
-*Generated for CarePoint Project – version dated 2026‑11‑10.*
+- Admin Supabase tokens use the SDK default browser persistence (`localStorage`), not an HttpOnly cookie.
+- The full AAL2 RLS policies and DB audit/status triggers require a `postgres`-owned migration.
+- Workers cannot run ClamAV; upload scanning is structural validation only.
+- CSRF uses Origin/Referer validation rather than per-form synchronizer tokens.

@@ -103,9 +103,9 @@ router.post('/', async (req, res) => {
         action: 'login_failed',
         details: { reason: 'email_not_found' }
       });
-      return res.status(404).json({
-        code: 'email_not_found',
-        message: 'No CarePoint account was found for this email. Check the spelling or create an account.'
+      return res.status(401).json({
+        code: 'invalid_credentials',
+        message: 'Invalid email or password.'
       });
     }
 
@@ -123,8 +123,8 @@ router.post('/', async (req, res) => {
         details: { reason: 'wrong_password' }
       });
       return res.status(401).json({
-        code: 'wrong_password',
-        message: 'The password you entered is incorrect. Please try again.'
+        code: 'invalid_credentials',
+        message: 'Invalid email or password.'
       });
     }
 

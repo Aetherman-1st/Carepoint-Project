@@ -360,13 +360,13 @@ router.post('/resend-verification', async (req, res) => {
     ]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'No account was found for this email.' });
+      return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
     const user = result.rows[0];
     const matches = await verifyPassword(String(password), user.password_hash);
     if (!matches) {
-      return res.status(401).json({ message: 'The password you entered is incorrect.' });
+      return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
     if (user.email_verified_at) {

@@ -12,6 +12,8 @@ const {
 } = require('./lib/auth');
 const { clearSessionCookie, requestIsSecure } = require('./lib/session');
 const { authIp, authEmail, contactIp, contactEmail, localTestBypass } = require('./lib/rate-limit');
+const { createOriginGuard } = require('./lib/csrf');
+const { requestTrace } = require('./lib/trace');
 
 const loginRoute = require('./routes/login');
 const signupRoute = require('./routes/signup');
@@ -32,6 +34,8 @@ const app = express();
 const rootDir = typeof __dirname === 'string' ? __dirname : '';
 const publicDir = path.join(rootDir, 'public');
 const privateDir = path.join(rootDir, 'private');
+const ADMIN_APP_URL = process.env.ADMIN_APP_URL || 'https://carepoint-admin.pages.dev';
+const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || 'https://carepoint-15l.pages.dev';
 
 function cloudflareAssets() {
   return globalThis.__cloudflareAssets || null;
@@ -60,6 +64,7 @@ async function sendAsset(res, assetPath, fallbackPath) {
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+app.use(requestTrace);
 app.use(express.json({ limit: '1mb' }));
 app.use(
   helmet({
@@ -84,6 +89,7 @@ if (!cloudflareAssets()) {
   );
 }
 app.use(attachUser);
+app.use(createOriginGuard({ allowedOrigins: [ADMIN_APP_URL, PUBLIC_ORIGIN] }));
 
 app.get('/api/session', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -251,20 +257,20 @@ app.use('/api/admin', adminRoute);
 
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ message: 'Not found' });
+    return res.status(404).json({ message: 'Not found', traceId: req.traceId });
   }
   res.redirect('/');
 });
 
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed') {
-    return res.status(400).json({ message: 'Invalid request body' });
+    return res.status(400).json({ message: 'Invalid request body', traceId: req.traceId });
   }
   if (err && err.type === 'entity.too.large') {
-    return res.status(413).json({ message: 'File is too large.' });
+    return res.status(413).json({ message: 'File is too large.', traceId: req.traceId });
   }
   console.error(err);
-  res.status(500).json({ message: 'Something went wrong' });
+  res.status(500).json({ message: 'Something went wrong', traceId: req.traceId });
 });
 
 module.exports = app;

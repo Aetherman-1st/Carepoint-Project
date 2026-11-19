@@ -12,3 +12,8 @@ Group 3.2: past Pending/Confirmed appointments can no longer be cancelled by pat
 Group 3.3: admin status dropdown only offers legal transitions and reply now uses the Worker endpoint that sends email and sets emailed from delivery.
 Group 3.4: clinic appointment list/detail no longer return or display patient email; clinics keep name, age, phone, conditions, medications.
 Group 3.5: admin-rls/security SQL updated for AAL2, admin_members protection, and appointment transition trigger; live application still blocked by postgres-owned tables.
+Group 4.1: added Origin/Referer CSRF guard for unsafe cookie requests, bearer-token admin bypass, and tests; live local checks reject missing/cross-origin writes and allow same-origin.
+Group 4.2: public login and signup resend-verification now return identical generic invalid-credentials responses; live local checks confirmed byte-identical 401 bodies.
+Group 4.3: every response now carries X-Request-Id; final JSON errors include traceId.
+Group 4.4: clinic image_url now accepts only local asset paths and rejects external/traversal values; admin profile errors no longer print raw Supabase messages.
+Group 4.5: UI flows rechecked: reschedule, cancel, clinic status, admin reply and admin status use the corrected endpoints; SECURITY_REVIEW.md rewritten to match current controls and blocked DB work.

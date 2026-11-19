@@ -486,7 +486,7 @@ async function loadPatientProfile(id) {
     document.getElementById('patientModalBody').innerHTML = `
       <div class="patient-profile-error">
         <h2 id="patientModalTitle">Profile unavailable</h2>
-        <p>${esc(err.message)}</p>
+        <p>Could not load this account. Please try again.</p>
       </div>
     `;
   }
