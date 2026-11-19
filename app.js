@@ -29,6 +29,7 @@ const passwordChangeRoute = require('./routes/password-change');
 const chatbotRoute = require('./routes/chatbot');
 const filesRoute = require('./routes/files');
 const adminRoute = require('./routes/admin');
+const adminAuthRoute = require('./routes/admin-auth');
 
 const app = express();
 const rootDir = typeof __dirname === 'string' ? __dirname : '';
@@ -240,7 +241,7 @@ if (!cloudflareAssets()) {
   app.use(express.static(publicDir));
 }
 
-app.use('/login', authIp, authEmail, loginRoute);
+app.use('/login', authIp, loginRoute);
 app.use('/signup', authIp, authEmail, signupRoute);
 app.use('/api/password-reset', authIp, authEmail, passwordResetRoute);
 app.use('/api/clinics', clinicsRoute);
@@ -253,6 +254,18 @@ app.use('/api/meetings', meetingsRoute);
 app.use('/api/password-change', passwordChangeRoute);
 app.use('/api/chatbot', chatbotRoute);
 app.use('/api/files', filesRoute);
+app.use('/admin-auth', (req, res, next) => {
+  const origin = req.get('origin');
+  if (origin === ADMIN_APP_URL) {
+    res.setHeader('Access-Control-Allow-Origin', ADMIN_APP_URL);
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+app.use('/admin-auth', adminAuthRoute);
 app.use('/api/admin', (req, res, next) => {
   const origin = req.get('origin');
   if (origin === ADMIN_APP_URL) {

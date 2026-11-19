@@ -1,6 +1,12 @@
 (function () {
   const config = window.CAREPOINT_ADMIN_CONFIG || {};
-  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
+  auth: {
+    storage: window.sessionStorage,
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
   const form = document.getElementById('resetForm');
   const password = document.getElementById('password');
   const confirm = document.getElementById('confirm');

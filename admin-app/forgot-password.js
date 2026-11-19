@@ -1,6 +1,12 @@
 (function () {
   const config = window.CAREPOINT_ADMIN_CONFIG || {};
-  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
+  auth: {
+    storage: window.sessionStorage,
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
   const form = document.getElementById('forgotForm');
   const email = document.getElementById('email');
   const message = document.getElementById('message');

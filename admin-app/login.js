@@ -1,6 +1,12 @@
 (function () {
   const config = window.CAREPOINT_ADMIN_CONFIG || {};
-  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
+    auth: {
+      storage: window.sessionStorage,
+      persistSession: true,
+      autoRefreshToken: true
+    }
+  });
 
   const loginPanel = document.getElementById('loginPanel');
   const mfaPanel = document.getElementById('mfaPanel');
@@ -162,17 +168,33 @@
     button.textContent = 'Signing in...';
 
     try {
-      const { data, error: loginError } = await client.auth.signInWithPassword({ email, password });
-      if (loginError || !data.session) {
+      const base = String(config.publicSiteUrl || '').replace(/\/$/, '');
+      const response = await fetch(base + '/admin-auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const payload = await response.json().catch(function () { return null; });
+
+      if (!response.ok || !payload || !payload.access_token || !payload.refresh_token) {
+        showError((payload && payload.message) || 'Invalid email or password.');
+        return;
+      }
+
+      const { data, error: sessionError } = await client.auth.setSession({
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token
+      });
+      if (sessionError || !data.session) {
         showError('Invalid email or password.');
         return;
       }
 
       await routeSession(data.session);
     } catch (err) {
-      await client.auth.signOut();
+      await client.auth.signOut().catch(function () {});
       showLogin();
-      showError('Invalid email or password.');
+      showError('Could not sign in right now. Please try again.');
     } finally {
       button.disabled = false;
       button.textContent = 'Log in';

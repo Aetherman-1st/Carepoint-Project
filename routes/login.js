@@ -6,8 +6,27 @@ const { isAdminEmail, roleHome, ADMIN_APP_URL } = require('../lib/auth');
 const { sendLoginCode } = require('../lib/mailer');
 const { hashPassword, verifyPassword } = require('../lib/password');
 const { logAudit } = require('../lib/audit');
+const loginLimiter = require('../lib/login-attempts');
 
 const router = express.Router();
+
+const PUBLIC_LIMITS = { maxAttempts: 10, windowSeconds: 10 * 60, cooldownSeconds: 10 * 60 };
+
+async function recordFailureSafe(keys) {
+  try {
+    await loginLimiter.recordFailure('public', keys.emailKey, keys.ipKey, PUBLIC_LIMITS);
+  } catch (err) {
+    console.error('Login limiter write failed:', err.message);
+  }
+}
+
+async function resetAttemptsSafe(keys) {
+  try {
+    await loginLimiter.resetAttempts('public', keys.emailKey, keys.ipKey);
+  } catch (err) {
+    console.error('Login limiter reset failed:', err.message);
+  }
+}
 
 const CODE_MINUTES = Number(process.env.TWO_FACTOR_CODE_MINUTES) || 10;
 const MAX_ATTEMPTS = 5;
@@ -91,12 +110,22 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
+  let limiterKeys = null;
+  try {
+    limiterKeys = await loginLimiter.guard('public', req, email, res);
+  } catch (err) {
+    console.error('Login limiter check failed:', err.message);
+    return res.status(503).json({ message: 'Could not sign in right now. Please try again.' });
+  }
+  if (!limiterKeys) return;
+
   try {
     const result = await pool.query('SELECT * FROM users WHERE lower(email) = lower($1)', [
       String(email).trim()
     ]);
 
     if (result.rows.length === 0) {
+      await recordFailureSafe(limiterKeys);
       await logAudit({
         req,
         actorEmail: String(email).trim().toLowerCase(),
@@ -113,6 +142,7 @@ router.post('/', async (req, res) => {
     const match = await verifyPassword(password, user.password_hash);
 
     if (!match) {
+      await recordFailureSafe(limiterKeys);
       await logAudit({
         req,
         actorId: user.id,
@@ -127,6 +157,8 @@ router.post('/', async (req, res) => {
         message: 'Invalid email or password.'
       });
     }
+
+    await resetAttemptsSafe(limiterKeys);
 
     if (user.banned_at) {
       await logAudit({

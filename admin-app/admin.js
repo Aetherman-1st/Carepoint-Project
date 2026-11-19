@@ -1,5 +1,11 @@
 const config = window.CAREPOINT_ADMIN_CONFIG || {};
-const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
+  auth: {
+    storage: window.sessionStorage,
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
 
 async function adminRequest(path, options = {}) {
   const { data } = await client.auth.getSession();
