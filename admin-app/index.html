@@ -34,14 +34,15 @@
             <div class="field">
               <label for="password">Password</label>
               <div class="password-row">
-                <input type="password" id="password" autocomplete="current-password" required>
+                <input type="password" id="password" autocomplete="current-password" minlength="8" required>
                 <button type="button" id="toggleBtn">Show</button>
               </div>
+              <p class="cell-sub" style="margin-top:4px;">Must be at least 8 characters.</p>
             </div>
             <p id="error" class="auth-error" role="alert"></p>
-            <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
+            <button type="submit" id="loginBtn" class="btn btn-primary" disabled>Log in</button>
           </form>
-          <p class="auth-alt"><a href="./forgot-password.html">Forgot password?</a></p>
+
         </div>
 
         <div id="lockoutPanel" class="hidden" role="alert">

@@ -274,8 +274,11 @@ img {
 }
 
 .btn:disabled {
-  opacity: 0.65;
+  background: #a8a8a8;
+  border-color: #a8a8a8;
+  color: #ffffff;
   cursor: not-allowed;
+  opacity: 1;
 }
 
 .btn.success {

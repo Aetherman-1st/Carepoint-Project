@@ -32,6 +32,13 @@
   let enrolling = false;
   let busy = false;
 
+  function updateLoginState() {
+    button.disabled = !(emailInput.value.trim() && passwordInput.value.length >= 8);
+  }
+
+  emailInput.addEventListener('input', updateLoginState);
+  passwordInput.addEventListener('input', updateLoginState);
+
   function showError(message) {
     error.textContent = message;
     error.classList.add('show');
@@ -90,6 +97,7 @@
     clearMfaError();
     pendingFactorId = null;
     enrolling = false;
+    updateLoginState();
     emailInput.focus();
   }
 
@@ -190,8 +198,9 @@
     const email = emailInput.value.trim();
     const password = passwordInput.value;
 
-    if (!email || !password) {
-      showError('Invalid email or password.');
+    if (!email || password.length < 8) {
+      showError('Enter a password of at least 8 characters.');
+      updateLoginState();
       return;
     }
 
@@ -232,8 +241,8 @@
       showLogin();
       showError('Could not sign in right now. Please try again.');
     } finally {
-      button.disabled = false;
       button.textContent = 'Log in';
+      updateLoginState();
     }
   });
 
