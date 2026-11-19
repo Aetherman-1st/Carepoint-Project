@@ -253,6 +253,18 @@ app.use('/api/meetings', meetingsRoute);
 app.use('/api/password-change', passwordChangeRoute);
 app.use('/api/chatbot', chatbotRoute);
 app.use('/api/files', filesRoute);
+app.use('/api/admin', (req, res, next) => {
+  const origin = req.get('origin');
+  if (origin === ADMIN_APP_URL) {
+    res.setHeader('Access-Control-Allow-Origin', ADMIN_APP_URL);
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id');
+    res.setHeader('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use('/api/admin', adminRoute);
 
 app.use((req, res) => {
