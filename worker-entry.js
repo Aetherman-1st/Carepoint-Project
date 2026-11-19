@@ -9,7 +9,8 @@ async function getBackend(env) {
       globalThis.__rateLimitBindings = {
         AUTH_IP_RATE_LIMITER: env.AUTH_IP_RATE_LIMITER,
         AUTH_EMAIL_RATE_LIMITER: env.AUTH_EMAIL_RATE_LIMITER,
-        CONTACT_RATE_LIMITER: env.CONTACT_RATE_LIMITER
+        CONTACT_RATE_LIMITER: env.CONTACT_RATE_LIMITER,
+        UPLOAD_RATE_LIMITER: env.UPLOAD_RATE_LIMITER
       };
       process.env.CF_WORKER = '1';
       process.env.SMTP_USER = env.SMTP_USER || '';

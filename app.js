@@ -25,6 +25,7 @@ const profileRoute = require('./routes/profile');
 const meetingsRoute = require('./routes/meetings');
 const passwordChangeRoute = require('./routes/password-change');
 const chatbotRoute = require('./routes/chatbot');
+const filesRoute = require('./routes/files');
 
 const app = express();
 const rootDir = typeof __dirname === 'string' ? __dirname : '';
@@ -244,6 +245,7 @@ app.use('/api/profile', profileRoute);
 app.use('/api/meetings', meetingsRoute);
 app.use('/api/password-change', passwordChangeRoute);
 app.use('/api/chatbot', chatbotRoute);
+app.use('/api/files', filesRoute);
 
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
@@ -255,6 +257,9 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed') {
     return res.status(400).json({ message: 'Invalid request body' });
+  }
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'File is too large.' });
   }
   console.error(err);
   res.status(500).json({ message: 'Something went wrong' });

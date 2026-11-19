@@ -197,6 +197,40 @@ async function run() {
 
     CREATE INDEX IF NOT EXISTS audit_logs_created_idx ON audit_logs (created_at DESC);
     CREATE INDEX IF NOT EXISTS audit_logs_actor_idx ON audit_logs (actor_id);
+
+    CREATE TABLE IF NOT EXISTS uploaded_files (
+      id uuid PRIMARY KEY,
+      owner_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      original_name text NOT NULL,
+      storage_key text NOT NULL UNIQUE,
+      extension text NOT NULL,
+      mime_type text NOT NULL,
+      size_bytes integer NOT NULL CHECK (size_bytes > 0),
+      content bytea,
+      status text NOT NULL DEFAULT 'pending_scan'
+        CHECK (status IN ('pending_scan', 'approved', 'rejected', 'scan_failed')),
+      scan_result text,
+      scan_checked_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS uploaded_files_owner_idx ON uploaded_files (owner_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS uploaded_files_status_idx ON uploaded_files (status);
+
+    CREATE TABLE IF NOT EXISTS file_scan_logs (
+      id bigserial PRIMARY KEY,
+      file_id uuid NOT NULL REFERENCES uploaded_files(id) ON DELETE CASCADE,
+      user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status text NOT NULL,
+      result text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS file_scan_logs_file_idx ON file_scan_logs (file_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS file_scan_logs_user_idx ON file_scan_logs (user_id, created_at DESC);
+
+    ALTER TABLE uploaded_files ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE file_scan_logs ENABLE ROW LEVEL SECURITY;
   `);
 
   if (ADMIN_EMAIL) {
