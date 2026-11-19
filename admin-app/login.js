@@ -33,7 +33,7 @@
   let busy = false;
 
   function updateLoginState() {
-    button.disabled = !(emailInput.value.trim() && passwordInput.value.length >= 8);
+    button.disabled = !(emailInput.value.trim() && passwordInput.value.length > 0);
   }
 
   emailInput.addEventListener('input', updateLoginState);
@@ -198,8 +198,8 @@
     const email = emailInput.value.trim();
     const password = passwordInput.value;
 
-    if (!email || password.length < 8) {
-      showError('Enter a password of at least 8 characters.');
+    if (!email || !password) {
+      showError('Invalid email or password.');
       updateLoginState();
       return;
     }
