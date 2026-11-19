@@ -17,3 +17,6 @@ Group 4.2: public login and signup resend-verification now return identical gene
 Group 4.3: every response now carries X-Request-Id; final JSON errors include traceId.
 Group 4.4: clinic image_url now accepts only local asset paths and rejects external/traversal values; admin profile errors no longer print raw Supabase messages.
 Group 4.5: UI flows rechecked: reschedule, cancel, clinic status, admin reply and admin status use the corrected endpoints; SECURITY_REVIEW.md rewritten to match current controls and blocked DB work.
+Group 5.1: final npm test 17/17 passed; local integration covered reschedule, duplicate slots, past cancel, patient/admin transitions, CSRF, trace IDs, clinic privacy and image validation.
+Group 5.2: production Worker, public Pages and admin Pages deployed; public/admin smoke tests passed login, CSRF, trace, CORS, CSP, reschedule persistence and logout.
+Group 5.3: rollback points saved before deploy; throwaway account 72, test rows and temp files deleted; final AUDIT_REPORT.txt updated to 28.0/32 (87.5%).
