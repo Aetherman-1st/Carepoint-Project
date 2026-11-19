@@ -14,12 +14,13 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select exists (
-    select 1
-    from public.admin_members m
-    where m.auth_user_id = coalesce(uid, auth.uid())
-      and m.role in ('admin', 'superadmin')
-  );
+  select coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
+    and exists (
+      select 1
+      from public.admin_members m
+      where m.auth_user_id = coalesce(uid, auth.uid())
+        and m.role in ('admin', 'superadmin')
+    );
 $$;
 
 revoke all on function public.is_admin(uuid) from public;
@@ -42,12 +43,24 @@ using (public.is_admin());
 drop policy if exists admin_users_update on public.users;
 create policy admin_users_update on public.users
 for update to authenticated
-using (public.is_admin() and role <> 'admin')
-with check (public.is_admin() and role <> 'admin');
+using (
+  public.is_admin()
+  and role <> 'admin'
+  and not exists (select 1 from public.admin_members m where m.user_id = users.id)
+)
+with check (
+  public.is_admin()
+  and role <> 'admin'
+  and not exists (select 1 from public.admin_members m where m.user_id = users.id)
+);
 drop policy if exists admin_users_delete on public.users;
 create policy admin_users_delete on public.users
 for delete to authenticated
-using (public.is_admin() and role <> 'admin');
+using (
+  public.is_admin()
+  and role <> 'admin'
+  and not exists (select 1 from public.admin_members m where m.user_id = users.id)
+);
 
 alter table public.clinics enable row level security;
 drop policy if exists admin_clinics_select on public.clinics;

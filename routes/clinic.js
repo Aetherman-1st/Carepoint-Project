@@ -133,7 +133,6 @@ router.get('/appointments', async (req, res) => {
          u.id AS patient_id,
          u.first_name AS patient_first_name,
          u.last_name AS patient_last_name,
-         u.email AS patient_email,
          u.phone AS patient_phone,
          COALESCE(d.name, 'Clinic visit') AS doctor_name,
          d.specialty AS doctor_specialty
@@ -210,7 +209,7 @@ router.get('/appointments/:id/patient', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT a.user_id, u.first_name, u.last_name, u.email, u.phone,
+      `SELECT a.user_id, u.first_name, u.last_name, u.phone,
               op.age, op.conditions, op.medications
        FROM appointments a
        JOIN users u ON u.id = a.user_id

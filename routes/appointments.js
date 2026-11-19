@@ -6,6 +6,12 @@ const zoom = require('../lib/zoom');
 const router = express.Router();
 
 const STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+const ALLOWED_TRANSITIONS = {
+  Pending: ['Confirmed', 'Cancelled'],
+  Confirmed: ['Completed', 'Cancelled'],
+  Completed: [],
+  Cancelled: []
+};
 
 const baseSelect = `
   SELECT
@@ -40,6 +46,15 @@ function todayString() {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function isoDate(value) {
+  if (value instanceof Date) {
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${value.getFullYear()}-${month}-${day}`;
+  }
+  return String(value || '').slice(0, 10);
 }
 
 router.get('/', requireAuth, async (req, res) => {
@@ -248,7 +263,13 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
       const appointment = result.rows[0];
 
-      if (!admin) {
+      if (admin) {
+        if (!ALLOWED_TRANSITIONS[appointment.status].includes(status)) {
+          return res.status(400).json({
+            message: `A ${appointment.status.toLowerCase()} appointment cannot be changed to ${status.toLowerCase()}.`
+          });
+        }
+      } else {
         if (appointment.user_id !== req.user.id) {
           return res.status(403).json({ message: 'You cannot change this appointment.' });
         }
@@ -257,6 +278,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
         }
         if (['Completed', 'Cancelled'].includes(appointment.status)) {
           return res.status(400).json({ message: 'This appointment can no longer be cancelled.' });
+        }
+        if (isoDate(appointment.appointment_date) < todayString()) {
+          return res.status(400).json({ message: 'Past appointments cannot be cancelled.' });
         }
       }
 
@@ -294,8 +318,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
         return res.status(400).json({ message: 'Rescheduling is not allowed for completed or cancelled appointments.' });
       }
 
-      let newDate = appointment_date || appointment.appointment_date;
-      let newTime = appointment_time || appointment.appointment_time;
+      const originalDate = isoDate(appointment.appointment_date);
+      let newDate = appointment_date || originalDate;
+      let newTime = appointment_time || String(appointment.appointment_time).slice(0, 5);
 
       if (newDate) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
@@ -324,40 +349,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
       const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : appointment.reason;
       const visitType = visit_type === 'online' ? 'online' : (visit_type === 'in_person' ? 'in_person' : appointment.visit_type);
 
-      if (newDate || newTime) {
-        const conflictField = doctor_id
-          ? `doctor_id = $${doctor_id ? 4 : 3}`
-          : 'clinic_id = $1 AND doctor_id IS NULL';
-        const conflictVals = [Number(newDate) ? newDate : clinicId];
-        // We'll just query with placeholders dynamically
-
-        const whereSql = `
-          SELECT 1 FROM appointments
-           WHERE id != $${id}
-            AND appointment_date = $${newDate ? 3 : 2}
-            AND appointment_time = $${newTime ? 4 : 3}
-            AND status IN ('Pending', 'Confirmed')
-        `;
-        const qVals = [id];
-        if (newDate) qVals.push(newDate);
-        if (newTime) qVals.push(newTime);
-        if (doctor_id) qVals.push(doctorId || 0);
-        // Actually need to rebuild; let's simplify by building query with parameters
-
-        // We'll just use prepared query approach below
-
-        // Actually we can just use the existing conflict logic with clinic_id and doctor_id resolved from req.body maybe; for brevity, if doctor_id not given we just check clinic_id and if given we check both.
-        // Let's do simpler: conflict check uses newDate, newTime, and doctorId if provided; we have doctorId maybe from req.user role? Not needed; we can just query with parameters.
-        // But to keep code simple, re-use existing conflict but with newDate/newTime and appropriate params.
-
-        // We'll exit and handle below after building params.
-        // Let's just perform check inline.
-
-      }
-
       // ---------- conflict check ----------
-      const doctorId = req.body.doctor_id ? Number(req.body.doctor_id) : null;
-
       let conflictSql = `
         SELECT 1 FROM appointments
          WHERE id != $1
@@ -365,14 +357,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
          AND appointment_time = $3
          AND status IN ('Pending', 'Confirmed')
       `;
-      let qVals = [id, newDate || appointment.appointment_date, newTime || appointment.appointment_time];
+      const qVals = [id, newDate, newTime];
 
-      if (doctorId) {
+      if (appointment.doctor_id) {
         conflictSql += ` AND doctor_id = $${qVals.length + 1}`;
-        qVals.push(doctorId);
+        qVals.push(appointment.doctor_id);
       } else {
-        conflictSql += ` AND clinic_id = $${qVals.length + 1}`;
-        qVals.push(clinicId);
+        conflictSql += ` AND clinic_id = $${qVals.length + 1} AND doctor_id IS NULL`;
+        qVals.push(appointment.clinic_id);
       }
 
       const conflict = await pool.query(conflictSql, qVals);
@@ -390,7 +382,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
             updated_at = now()
         WHERE id = $5
         RETURNING *
-      `, [newDate || appointment.appointment_date, newTime || appointment.appointment_time, cleanReason, visitType, id]);
+      `, [newDate, newTime, cleanReason, visitType, id]);
 
       const updated = updateResult.rows[0];
 

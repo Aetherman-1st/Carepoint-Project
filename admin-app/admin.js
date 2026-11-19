@@ -47,6 +47,12 @@ let reauthUntil = 0;
 let reauthPending = null;
 
 const STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+const ALLOWED_TRANSITIONS = {
+  Pending: ['Pending', 'Confirmed', 'Cancelled'],
+  Confirmed: ['Confirmed', 'Completed', 'Cancelled'],
+  Completed: ['Completed'],
+  Cancelled: ['Cancelled']
+};
 
 const viewCopy = {
   overview: ['Overview', 'Bookings and messages.'],
@@ -713,7 +719,7 @@ function renderAppointments() {
           </td>
           <td>
             <select class="status-select status-${appointment.status.toLowerCase()}" data-id="${appointment.id}" aria-label="Status for ${esc(appointment.patient_first_name)} ${esc(appointment.patient_last_name)}">
-              ${STATUSES.map(
+              ${ALLOWED_TRANSITIONS[appointment.status].map(
                 (status) =>
                   `<option value="${status}"${status === appointment.status ? ' selected' : ''}>${status}</option>`
               ).join('')}

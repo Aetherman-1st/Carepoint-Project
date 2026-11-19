@@ -285,6 +285,7 @@ function renderAppointments() {
       const canCancel =
         ['Pending', 'Confirmed'].includes(appointment.status) &&
         appointment.appointment_date >= todayISO();
+      const canReschedule = canCancel;
 
       return `
         <article class="appt-item is-entering" style="--item-index: ${index}">
@@ -306,6 +307,7 @@ function renderAppointments() {
             canCancel || appointment.visit_type === 'online'
               ? `<div class="appt-actions">
                    ${appointment.visit_type === 'online' ? '<a class="btn btn-sm btn-outline" href="/meetings">Meeting link</a>' : ''}
+                   ${canReschedule ? `<button type="button" class="btn btn-sm btn-outline" data-reschedule="${appointment.id}">Reschedule</button>` : ''}
                    ${canCancel ? `<button type="button" class="btn btn-sm btn-danger" data-cancel="${appointment.id}">Cancel appointment</button>` : ''}
                  </div>`
               : ''
@@ -701,7 +703,6 @@ loadAppointments();
 
 // Reschedule and password change
 (function () {
-  const rescheduleBtn = document.getElementById('rescheduleBtn');
   const rescheduleModal = document.getElementById('rescheduleModal');
   const rescheduleModalClose = document.getElementById('rescheduleModalClose');
   const rescheduleForm = document.getElementById('rescheduleForm');
@@ -713,15 +714,17 @@ loadAppointments();
   const rescheduleVisitType = document.getElementById('rescheduleVisitType');
 
   function openRescheduleModal(apptId) {
-    rescheduleAptId.value = apptId;
-    const now = new Date();
-    rescheduleDate.min = now.toISOString().split('T')[0];
-    rescheduleDate.value = '';
-    rescheduleTime.value = '';
-    rescheduleReason.value = '';
-    rescheduleVisitType.value = 'in_person';
+    const appointment = appointments.find((item) => String(item.id) === String(apptId));
+    if (!appointment) return;
+    rescheduleAptId.value = appointment.id;
+    rescheduleDate.min = todayISO();
+    rescheduleDate.value = appointment.appointment_date || '';
+    rescheduleTime.value = String(appointment.appointment_time || '').slice(0, 5);
+    rescheduleReason.value = appointment.reason || '';
+    rescheduleVisitType.value = appointment.visit_type === 'online' ? 'online' : 'in_person';
     rescheduleModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    rescheduleDate.focus();
   }
 
   function closeRescheduleModal() {
@@ -729,8 +732,11 @@ loadAppointments();
     document.body.style.overflow = '';
   }
 
-  if (rescheduleBtn && rescheduleModal && rescheduleModalClose && rescheduleForm) {
-    rescheduleBtn.addEventListener('click', () => openRescheduleModal());
+  if (rescheduleModal && rescheduleModalClose && rescheduleForm) {
+    appointmentList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-reschedule]');
+      if (button) openRescheduleModal(button.dataset.reschedule);
+    });
     rescheduleModalClose.addEventListener('click', closeRescheduleModal);
     rescheduleFormCancel.addEventListener('click', closeRescheduleModal);
     rescheduleModal.addEventListener('click', (e) => {
@@ -740,6 +746,10 @@ loadAppointments();
       e.preventDefault();
       const apptId = rescheduleAptId.value;
       if (!apptId) return closeRescheduleModal();
+      if (!rescheduleDate.value || !rescheduleTime.value) {
+        window.alert('Please choose a date and time.');
+        return;
+      }
       const payload = {
         appointment_date: rescheduleDate.value,
         appointment_time: rescheduleTime.value,

@@ -7,3 +7,8 @@ Group 2.6: admin forgot/reset pages added with generic responses; Supabase redir
 Group 2.7: admin login errors are generic; public Auth settings checked; hosted Auth rate-limit/MFA settings are not exposed and could not be raised without management access.
 Group 2.8: Worker audit logging added for public login success/failure/lockout/password changes and admin actions; DB trigger migration authored but blocked by postgres-owned tables.
 Group 2.9: strict admin CSP/security headers added; admin JWT lifetime shortening blocked (no Supabase management access).
+Group 3.1: patient reschedule now opens with the appointment id, prefills date/time/reason/visit type, validates required fields, and the API no longer references undefined doctor_id/clinicId; local live tests passed 200 reschedule (including time-only), 409 duplicate, 403 patient confirm, 400 past cancel.
+Group 3.2: past Pending/Confirmed appointments can no longer be cancelled by patients; admin and patient status changes enforce Pending->Confirmed/Cancelled and Confirmed->Completed/Cancelled; local tests passed.
+Group 3.3: admin status dropdown only offers legal transitions and reply now uses the Worker endpoint that sends email and sets emailed from delivery.
+Group 3.4: clinic appointment list/detail no longer return or display patient email; clinics keep name, age, phone, conditions, medications.
+Group 3.5: admin-rls/security SQL updated for AAL2, admin_members protection, and appointment transition trigger; live application still blocked by postgres-owned tables.

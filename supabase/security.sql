@@ -1,8 +1,7 @@
 -- Admin AAL2 enforcement and audit triggers. Idempotent and additive.
 
--- is_admin is owned by postgres and cannot be replaced by carepoint_app.
--- RLS uses this equivalent function, which requires an AAL2 JWT.
--- Apply this migration as the database owner (postgres).
+-- Admin AAL2 enforcement, protected-admin RLS, status transitions, and audit triggers.
+-- Apply as the database owner (postgres); carepoint_app does not own these tables.
 create or replace function public.is_admin(uid uuid default auth.uid())
 returns boolean
 language sql
@@ -56,10 +55,22 @@ using (
 
 alter policy admin_users_select on public.users using (public.is_admin_aal2());
 alter policy admin_users_update on public.users
-using (public.is_admin_aal2() and role <> 'admin')
-with check (public.is_admin_aal2() and role <> 'admin');
+using (
+  public.is_admin_aal2()
+  and role <> 'admin'
+  and not exists (select 1 from public.admin_members m where m.user_id = users.id)
+)
+with check (
+  public.is_admin_aal2()
+  and role <> 'admin'
+  and not exists (select 1 from public.admin_members m where m.user_id = users.id)
+);
 alter policy admin_users_delete on public.users
-using (public.is_admin_aal2() and role <> 'admin');
+using (
+  public.is_admin_aal2()
+  and role <> 'admin'
+  and not exists (select 1 from public.admin_members m where m.user_id = users.id)
+);
 
 alter policy admin_clinics_select on public.clinics using (public.is_admin_aal2());
 alter policy admin_doctors_select on public.doctors using (public.is_admin_aal2());
@@ -73,6 +84,29 @@ alter policy admin_contact_replies_insert on public.contact_replies
 with check (public.is_admin_aal2());
 alter policy admin_onboarding_profiles_select on public.onboarding_profiles using (public.is_admin_aal2());
 alter policy admin_login_codes_select on public.login_codes using (public.is_admin_aal2());
+
+create or replace function public.enforce_appointment_status_transition()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if old.status is distinct from new.status
+     and not (
+       (old.status = 'Pending' and new.status in ('Confirmed', 'Cancelled'))
+       or (old.status = 'Confirmed' and new.status in ('Completed', 'Cancelled'))
+     ) then
+    raise exception 'A % appointment cannot be changed to %.', lower(old.status), lower(new.status)
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_appointment_status_transition on public.appointments;
+create trigger enforce_appointment_status_transition
+before update of status on public.appointments
+for each row execute function public.enforce_appointment_status_transition();
 
 create or replace function public.audit_actor_user_id()
 returns integer

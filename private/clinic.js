@@ -174,8 +174,7 @@ function renderAppointments() {
             <div class="cell-sub">${appointment.visit_type === 'online' ? 'Online · Zoom' : 'In person'}</div>
           </td>
           <td>
-            <div>${esc(appointment.patient_email)}</div>
-            <div class="cell-sub">${esc(appointment.patient_phone || 'No phone')}</div>
+            <div>${esc(appointment.patient_phone || 'No phone')}</div>
           </td>
           <td>
             <div>${esc(formatDate(appointment.appointment_date))}</div>
@@ -291,7 +290,6 @@ function openPatientModal(id) {
           <div class="patient-profile-identity">
             <span class="page-eyebrow">Patient details</span>
             <h2 id="patientModalTitle">${esc(patient.first_name)} ${esc(patient.last_name)}</h2>
-            <p>${esc(patient.email)}</p>
           </div>
         </div>
         <div class="patient-profile-grid">
