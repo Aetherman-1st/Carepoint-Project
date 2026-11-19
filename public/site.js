@@ -348,18 +348,37 @@ if (contactForm) {
   const status = document.getElementById('contactStatus');
   const button = document.getElementById('contactBtn');
 
-  contactForm.addEventListener('submit', async (event) => {
+    const contactNameInput = document.getElementById('contactName');
+    const contactEmailInput = document.getElementById('contactEmail');
+    const V = window.CAREPOINT_VALIDATE;
+    if (V) {
+      V.lettersOnly(contactNameInput);
+    }
+
+    contactForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     status.textContent = '';
     status.className = 'form-status';
 
-    const name = document.getElementById('contactName').value.trim();
-    const email = document.getElementById('contactEmail').value.trim();
+    const name = contactNameInput.value.trim();
+    const email = contactEmailInput.value.trim();
     const subject = document.getElementById('contactSubject').value.trim();
     const message = document.getElementById('contactMessage').value.trim();
 
     if (!name || !email || !message) {
       status.textContent = 'Please add your name, email and message.';
+      status.className = 'form-status err';
+      return;
+    }
+
+    if (V && !V.isPersonName(name)) {
+      status.textContent = 'Your name can only contain letters (spaces, hyphens and apostrophes allowed).';
+      status.className = 'form-status err';
+      return;
+    }
+
+    if (V && !V.isEmail(email)) {
+      status.textContent = 'Enter a valid email address.';
       status.className = 'form-status err';
       return;
     }

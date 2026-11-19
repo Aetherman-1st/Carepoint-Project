@@ -4,6 +4,7 @@ const pool = require('../db');
 const { sendSignupCode } = require('../lib/mailer');
 const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
 const { isAdminEmail, roleHome, ADMIN_APP_URL } = require('../lib/auth');
+const { isPersonName } = require('../lib/validate');
 const { hashPassword, verifyPassword } = require('../lib/password');
 
 const router = express.Router();
@@ -110,6 +111,10 @@ router.post('/', async (req, res) => {
   const cleanFirst = String(first_name).trim();
   const cleanLast = String(last_name).trim();
   const cleanEmail = String(email).trim().toLowerCase();
+
+  if (!isPersonName(cleanFirst) || !isPersonName(cleanLast)) {
+    return res.status(400).json({ message: 'First and last name can only contain letters (spaces, hyphens and apostrophes allowed).' });
+  }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({ message: 'Please enter a valid email address' });

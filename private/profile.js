@@ -1,9 +1,16 @@
 const profileForm = document.getElementById('profileForm');
+const V = window.CAREPOINT_VALIDATE;
 const firstNameInput = document.getElementById('firstName');
 const lastNameInput = document.getElementById('lastName');
 const phoneInput = document.getElementById('phone');
 const emailInput = document.getElementById('email');
 const avatarInput = document.getElementById('avatarInput');
+if (V) {
+  V.lettersOnly(firstNameInput);
+  V.lettersOnly(lastNameInput);
+  V.phoneOnly(phoneInput);
+}
+
 const removeAvatarButton = document.getElementById('removeAvatar');
 const avatarInitials = document.getElementById('profileInitials');
 const avatarImage = document.getElementById('profileAvatarImage');
@@ -180,6 +187,16 @@ profileForm.addEventListener('submit', async (event) => {
   if (!firstName || !lastName) {
     setStatus('Please add your first and last name.', 'err');
     (!firstName ? firstNameInput : lastNameInput).focus();
+    return;
+  }
+
+  if (V && (!V.isPersonName(firstName) || !V.isPersonName(lastName))) {
+    setStatus('Names can only contain letters (spaces, hyphens and apostrophes allowed).', 'err');
+    return;
+  }
+
+  if (V && !V.isPhone(phone)) {
+    setStatus('Phone can only contain digits, spaces and + ( ) - .', 'err');
     return;
   }
 

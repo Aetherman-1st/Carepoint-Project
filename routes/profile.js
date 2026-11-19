@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { requireUser } = require('../lib/auth');
 const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
+const { isPersonName, isPhone } = require('../lib/validate');
 
 const router = express.Router();
 const MAX_AVATAR_BYTES = 512 * 1024;
@@ -104,6 +105,14 @@ router.put('/', requireUser, async (req, res) => {
 
   if (!firstName || !lastName) {
     return res.status(400).json({ message: 'First and last name are required.' });
+  }
+
+  if (!isPersonName(firstName) || !isPersonName(lastName)) {
+    return res.status(400).json({ message: 'Names can only contain letters (spaces, hyphens and apostrophes allowed).' });
+  }
+
+  if (!isPhone(phone)) {
+    return res.status(400).json({ message: 'Phone can only contain digits, spaces and + ( ) - .' });
   }
 
   try {

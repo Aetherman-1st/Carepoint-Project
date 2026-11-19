@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { isPersonName } = require('../lib/validate');
 
 const router = express.Router();
 
@@ -10,7 +11,11 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Please add your name, email and message.' });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!isPersonName(name)) {
+    return res.status(400).json({ message: 'Your name can only contain letters (spaces, hyphens and apostrophes allowed).' });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
     return res.status(400).json({ message: 'Please enter a valid email address.' });
   }
 

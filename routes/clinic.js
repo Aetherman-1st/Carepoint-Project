@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { requireClinic } = require('../lib/auth');
 const zoom = require('../lib/zoom');
+const { isPersonName, isPhone, isPlaceName } = require('../lib/validate');
 
 const router = express.Router();
 const STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
@@ -80,6 +81,14 @@ router.put('/profile', async (req, res) => {
 
   if (!name) {
     return res.status(400).json({ message: 'Clinic name is required.' });
+  }
+
+  if (!isPlaceName(city)) {
+    return res.status(400).json({ message: 'City can only contain letters (spaces, hyphens, apostrophes and periods allowed).' });
+  }
+
+  if (!isPhone(phone)) {
+    return res.status(400).json({ message: 'Phone can only contain digits, spaces and + ( ) - .' });
   }
 
   let imageUrl;
@@ -271,6 +280,10 @@ router.post('/doctors', async (req, res) => {
     return res.status(400).json({ message: 'Doctor name and specialty are required.' });
   }
 
+  if (!isPersonName(name)) {
+    return res.status(400).json({ message: 'Doctor name can only contain letters (spaces, hyphens and apostrophes allowed).' });
+  }
+
   try {
     const result = await pool.query(
       `INSERT INTO doctors (clinic_id, name, specialty, bio)
@@ -295,6 +308,10 @@ router.put('/doctors/:id', async (req, res) => {
 
   if (!id || !name || !specialty) {
     return res.status(400).json({ message: 'Doctor name and specialty are required.' });
+  }
+
+  if (!isPersonName(name)) {
+    return res.status(400).json({ message: 'Doctor name can only contain letters (spaces, hyphens and apostrophes allowed).' });
   }
 
   try {

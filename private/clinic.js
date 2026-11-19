@@ -5,6 +5,13 @@ const state = {
   doctors: []
 };
 
+const V = window.CAREPOINT_VALIDATE;
+if (V) {
+  V.lettersOnly(document.getElementById('doctorName'));
+  V.placeOnly(document.getElementById('clinicCity'));
+  V.phoneOnly(document.getElementById('clinicPhone'));
+}
+
 const STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
 const viewCopy = {
   overview: ['Overview', 'Your clinic at a glance.'],
@@ -443,9 +450,16 @@ document.getElementById('doctorForm').addEventListener('submit', async (event) =
   const bio = document.getElementById('doctorBio').value.trim();
   const status = document.getElementById('doctorStatus');
   const button = document.getElementById('doctorSaveBtn');
+  const V = window.CAREPOINT_VALIDATE;
 
   if (!name || !specialty) {
     status.textContent = 'Doctor name and specialty are required.';
+    status.className = 'form-status err';
+    return;
+  }
+
+  if (V && !V.isPersonName(name)) {
+    status.textContent = 'Doctor name can only contain letters (spaces, hyphens and apostrophes allowed).';
     status.className = 'form-status err';
     return;
   }
@@ -500,6 +514,18 @@ document.getElementById('clinicProfileForm').addEventListener('submit', async (e
 
   if (!payload.name) {
     status.textContent = 'Clinic name is required.';
+    status.className = 'form-status err';
+    return;
+  }
+
+  if (V && !V.isPlaceName(payload.city)) {
+    status.textContent = 'City can only contain letters (spaces, hyphens, apostrophes and periods allowed).';
+    status.className = 'form-status err';
+    return;
+  }
+
+  if (V && !V.isPhone(payload.phone)) {
+    status.textContent = 'Phone can only contain digits, spaces and + ( ) - .';
     status.className = 'form-status err';
     return;
   }

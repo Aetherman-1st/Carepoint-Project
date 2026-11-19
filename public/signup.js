@@ -1,4 +1,5 @@
 const form = document.getElementById('signupForm');
+const V = window.CAREPOINT_VALIDATE;
 const firstnameInput = document.getElementById('firstname');
 const lastnameInput = document.getElementById('lastname');
 const emailInput = document.getElementById('email');
@@ -105,6 +106,11 @@ window.addEventListener('load', () => {
   form.classList.add('show');
 });
 
+if (V) {
+  V.lettersOnly(firstnameInput);
+  V.lettersOnly(lastnameInput);
+}
+
 [firstnameInput, lastnameInput, emailInput, passwordInput, confirmInput].forEach((input) => {
   input.addEventListener('input', clearError);
 });
@@ -123,6 +129,16 @@ form.addEventListener('submit', async (e) => {
   const email = emailInput.value.trim();
   const password = passwordInput.value;
   const confirm = confirmInput.value;
+
+  if (V && (!V.isPersonName(first_name) || !V.isPersonName(last_name))) {
+    showError('Names can only contain letters (spaces, hyphens and apostrophes allowed)');
+    return;
+  }
+
+  if (V && !V.isEmail(email)) {
+    showError('Enter a valid email address');
+    return;
+  }
 
   if (!first_name || !last_name || !email || !password || !confirm) {
     showError('Please fill in all fields');
