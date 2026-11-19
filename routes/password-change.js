@@ -3,6 +3,7 @@ const pool = require('../db');
 const { requireAuth } = require('../lib/auth');
 const { hashPassword, verifyPassword } = require('../lib/password');
 const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
+const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS) || 12;
@@ -61,6 +62,14 @@ router.post('/', requireAuth, async (req, res) => {
       })
     );
 
+    await logAudit({
+      req,
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'password_changed',
+      entityType: 'user',
+      entityId: user.id
+    });
     res.json({ message: 'Password changed successfully.' });
   } catch (err) {
     res.status(500).json({ message: 'Could not change the password.' });

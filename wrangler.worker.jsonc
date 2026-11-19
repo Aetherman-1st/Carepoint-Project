@@ -75,6 +75,8 @@
     "EMAIL_TRANSPORT": "smtp",
     "SMTP_USER": "care.point231@gmail.com",
     "MAIL_FROM": "CarePoint <care.point231@gmail.com>",
+    "SUPABASE_URL": "https://upldnuraxojivoqvckzt.supabase.co",
+    "SUPABASE_ANON_KEY": "sb_publishable_Mxc0T3RIAncl8efvHOvjAg_l_yAY7lq",
     "TWO_FACTOR_CODE_MINUTES": "10",
     "APP_TIMEZONE": "Asia/Amman",
     "ZOOM_ACCOUNT_ID": "IFBIyAm3TXGGL-quYnsaxw",

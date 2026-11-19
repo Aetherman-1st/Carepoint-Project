@@ -25,21 +25,42 @@
           <p>Sign in with your CarePoint administrator account.</p>
         </div>
 
-        <form id="adminLoginForm" class="auth-form" novalidate>
-          <div class="field">
-            <label for="email">Email address</label>
-            <input type="email" id="email" autocomplete="email" autofocus required>
-          </div>
-          <div class="field">
-            <label for="password">Password</label>
-            <div class="password-row">
-              <input type="password" id="password" autocomplete="current-password" required>
-              <button type="button" id="toggleBtn">Show</button>
+        <div id="loginPanel">
+          <form id="adminLoginForm" class="auth-form" novalidate>
+            <div class="field">
+              <label for="email">Email address</label>
+              <input type="email" id="email" autocomplete="email" autofocus required>
             </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <div class="password-row">
+                <input type="password" id="password" autocomplete="current-password" required>
+                <button type="button" id="toggleBtn">Show</button>
+              </div>
+            </div>
+            <p id="error" class="auth-error" role="alert"></p>
+            <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
+          </form>
+          <p class="auth-alt"><a href="./forgot-password.html">Forgot password?</a></p>
+        </div>
+
+        <div id="mfaPanel" class="hidden">
+          <div class="auth-heading">
+            <h2 id="mfaTitle">Two-factor authentication</h2>
+            <p id="mfaHelp">Enter the 6-digit code from your authenticator app.</p>
           </div>
-          <p id="error" class="auth-error" role="alert"></p>
-          <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
-        </form>
+          <div id="mfaQr" style="max-width:220px;margin:0 auto 12px;"></div>
+          <p id="mfaSecret" class="cell-sub" style="word-break:break-all;text-align:center;margin-bottom:14px;"></p>
+          <form id="mfaForm" class="auth-form" novalidate>
+            <div class="field">
+              <label for="mfaCode">Authentication code</label>
+              <input type="text" id="mfaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+            </div>
+            <p id="mfaError" class="auth-error" role="alert"></p>
+            <button type="submit" id="mfaBtn" class="btn btn-primary">Verify and continue</button>
+          </form>
+          <p class="auth-alt"><a href="#" id="mfaBack">Use a different account</a></p>
+        </div>
 
         <p class="auth-alt"><a href="https://carepoint-15l.pages.dev">Back to CarePoint</a></p>
       </div>

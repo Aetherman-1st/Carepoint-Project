@@ -295,6 +295,26 @@
     </div>
   </div>
 
+  <div class="patient-modal-overlay hidden" id="reauthModal" aria-hidden="true">
+    <div class="patient-modal-card" role="dialog" aria-modal="true" aria-labelledby="reauthTitle">
+      <div class="patient-modal-body">
+        <h2 id="reauthTitle">Confirm your password</h2>
+        <p class="cell-sub" style="margin:8px 0 18px">Sensitive admin actions require password re-entry every 5 minutes.</p>
+        <form id="reauthForm" class="auth-form" novalidate>
+          <div class="field">
+            <label for="reauthPassword">Password</label>
+            <input type="password" id="reauthPassword" autocomplete="current-password" required>
+          </div>
+          <p id="reauthError" class="auth-error" role="alert"></p>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+            <button type="button" class="btn btn-outline" id="reauthCancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="reauthSubmit">Confirm</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
 
   <script src="./config.js"></script>

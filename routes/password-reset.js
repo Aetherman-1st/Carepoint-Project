@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { sendPasswordResetCode } = require('../lib/mailer');
 const { hashPassword, verifyPassword } = require('../lib/password');
+const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 
@@ -137,6 +138,14 @@ router.post('/verify', async (req, res) => {
     );
 
     await pool.query('UPDATE password_reset_codes SET consumed = true WHERE id = $1', [record.id]);
+
+    await logAudit({
+      req,
+      actorId: record.user_id,
+      action: 'password_reset',
+      entityType: 'user',
+      entityId: record.user_id
+    });
 
     res.json({ message: 'Your password was reset. You can log in with your new password.', redirect: '/login' });
   } catch (err) {

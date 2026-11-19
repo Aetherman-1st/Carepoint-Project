@@ -1,6 +1,38 @@
 const config = window.CAREPOINT_ADMIN_CONFIG || {};
 const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
 
+async function adminRequest(path, options = {}) {
+  const { data } = await client.auth.getSession();
+  const token = data.session && data.session.access_token;
+  if (!token) throw new Error('Please sign in again.');
+
+  const base = String(config.publicSiteUrl || '').replace(/\/$/, '');
+  const response = await fetch(base + path, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+    }
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (err) {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const error = new Error((payload && payload.message) || 'Request failed.');
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
+}
+
 const state = {
   appointments: [],
   messages: [],
@@ -11,6 +43,8 @@ const state = {
 
 let modalReturnFocus = null;
 let profileRequest = 0;
+let reauthUntil = 0;
+let reauthPending = null;
 
 const STATUSES = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
 
@@ -89,6 +123,12 @@ async function loadSession() {
     const session = data.session;
 
     if (!session) {
+      window.location.replace('./');
+      return null;
+    }
+
+    const { data: level } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (!level || level.currentLevel !== 'aal2') {
       window.location.replace('./');
       return null;
     }
@@ -477,6 +517,63 @@ function closePatientModal() {
   modalReturnFocus = null;
 }
 
+function closeReauth(result) {
+  const modal = document.getElementById('reauthModal');
+  const form = document.getElementById('reauthForm');
+  const password = document.getElementById('reauthPassword');
+  const error = document.getElementById('reauthError');
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+  form.reset();
+  error.textContent = '';
+  error.classList.remove('show');
+  const resolve = reauthPending;
+  reauthPending = null;
+  if (resolve) resolve(result);
+}
+
+function requireReauth() {
+  if (Date.now() < reauthUntil) return Promise.resolve(true);
+  if (reauthPending) return reauthPending.promise;
+
+  const modal = document.getElementById('reauthModal');
+  const password = document.getElementById('reauthPassword');
+  const error = document.getElementById('reauthError');
+
+  const promise = new Promise((resolve) => {
+    reauthPending = { resolve };
+  });
+  reauthPending.promise = promise;
+  error.textContent = '';
+  error.classList.remove('show');
+  password.value = '';
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  password.focus();
+  return promise;
+}
+
+async function verifyAdminPassword(password) {
+  const { data } = await client.auth.getSession();
+  const email = data.session && data.session.user && data.session.user.email;
+  if (!email) return false;
+
+  const response = await fetch(`${config.supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      apikey: config.supabaseKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, password })
+  });
+
+  if (!response.ok) return false;
+  const payload = await response.json();
+  return Boolean(payload && payload.access_token);
+}
+
 async function setUserBan(id, banned, button) {
   const target = state.users.find((user) => user.id === id);
   const name = target
@@ -487,6 +584,7 @@ async function setUserBan(id, banned, button) {
     : `Restore access for ${name}?`;
 
   if (!window.confirm(prompt)) return;
+  if (!(await requireReauth())) return;
 
   const originalLabel = button ? button.textContent : '';
   if (button) {
@@ -495,22 +593,16 @@ async function setUserBan(id, banned, button) {
   }
 
   try {
-    const { data, error } = await client
-      .from('users')
-      .update({ banned_at: banned ? new Date().toISOString() : null })
-      .eq('id', id)
-      .select('id, banned_at')
-      .maybeSingle();
+    const data = await adminRequest(`/api/admin/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ banned })
+    });
+    const updated = data && data.user;
 
-    if (error) {
-      showToast(error.message || 'Could not update this account.', 'warn');
-      return;
-    }
+    if (target && updated) target.banned_at = updated.banned_at;
 
-    if (target && data) target.banned_at = data.banned_at;
-
-    if (state.activeProfile && state.activeProfile.user.id === id && data) {
-      state.activeProfile.user.banned_at = data.banned_at;
+    if (state.activeProfile && state.activeProfile.user.id === id && updated) {
+      state.activeProfile.user.banned_at = updated.banned_at;
       renderPatientProfile(state.activeProfile);
     }
 
@@ -540,6 +632,7 @@ async function deleteUserAccount(id, button) {
   ) {
     return;
   }
+  if (!(await requireReauth())) return;
 
   const originalLabel = button ? button.textContent : '';
   if (button) {
@@ -548,12 +641,7 @@ async function deleteUserAccount(id, button) {
   }
 
   try {
-    const { error } = await client.from('users').delete().eq('id', id);
-
-    if (error) {
-      showToast(error.message || 'Could not delete this account.', 'warn');
-      return;
-    }
+    await adminRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
 
     closePatientModal();
     await loadData();
@@ -880,16 +968,18 @@ document.getElementById('adminAppointments').addEventListener('change', async (e
   select.disabled = true;
   select.className = 'status-select status-' + requested.toLowerCase();
 
-  try {
-    const { error } = await client.from('appointments').update({ status: requested }).eq('id', id);
+  if (!(await requireReauth())) {
+    select.value = previous;
+    select.className = 'status-select status-' + previous.toLowerCase();
+    select.disabled = false;
+    return;
+  }
 
-    if (error) {
-      window.alert(error.message || 'Could not update the appointment.');
-      select.value = previous;
-      select.className = 'status-select status-' + previous.toLowerCase();
-      select.disabled = false;
-      return;
-    }
+  try {
+    await adminRequest(`/api/admin/appointments/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: requested })
+    });
 
     appointment.status = requested;
     renderStats();
@@ -927,6 +1017,8 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
     return;
   }
 
+  if (!(await requireReauth())) return;
+
   button.disabled = true;
   button.classList.add('is-loading');
   button.textContent = 'Sending...';
@@ -934,30 +1026,60 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
   status.className = 'form-status';
 
   try {
-    const { error } = await client.from('contact_replies').insert({
-      message_id: id,
-      admin_id: adminId,
-      body,
-      emailed: false
+    await adminRequest('/api/admin/reply', {
+      method: 'POST',
+      body: JSON.stringify({ message_id: id, body })
     });
 
-    if (error) {
-      status.textContent = error.message || 'Could not send the reply.';
+    await loadData();
+    showToast('Reply sent.', 'ok');
+  } catch (err) {
+    if (err.status === 502) {
+      await loadData();
+      showToast('Reply saved, but email delivery failed.', 'warn');
+    } else {
+      status.textContent = 'Could not send the reply. Please try again.';
       status.className = 'form-status err';
+    }
+  } finally {
+    if (button.isConnected) {
       button.disabled = false;
       button.classList.remove('is-loading');
       button.textContent = 'Send reply';
+    }
+  }
+});
+
+document.getElementById('reauthCancel').addEventListener('click', () => closeReauth(false));
+document.getElementById('reauthModal').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeReauth(false);
+});
+document.getElementById('reauthForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const password = document.getElementById('reauthPassword');
+  const error = document.getElementById('reauthError');
+  const button = document.getElementById('reauthSubmit');
+  error.textContent = '';
+  error.classList.remove('show');
+  button.disabled = true;
+  button.textContent = 'Checking...';
+  try {
+    const ok = await verifyAdminPassword(password.value);
+    if (!ok) {
+      error.textContent = 'Password is incorrect.';
+      error.classList.add('show');
+      password.value = '';
+      password.focus();
       return;
     }
-
-    await loadData();
-    showToast('Reply saved.', 'ok');
+    reauthUntil = Date.now() + 5 * 60 * 1000;
+    closeReauth(true);
   } catch (err) {
-    status.textContent = 'Could not send the reply. Please try again.';
-    status.className = 'form-status err';
+    error.textContent = 'Could not verify the password. Try again.';
+    error.classList.add('show');
+  } finally {
     button.disabled = false;
-    button.classList.remove('is-loading');
-    button.textContent = 'Send reply';
+    button.textContent = 'Confirm';
   }
 });
 

@@ -16,6 +16,8 @@ async function getBackend(env) {
       process.env.SMTP_USER = env.SMTP_USER || '';
       process.env.SMTP_PASS = env.SMTP_PASS || '';
       process.env.MAIL_FROM = env.MAIL_FROM || process.env.MAIL_FROM || '';
+      process.env.SUPABASE_URL = env.SUPABASE_URL || process.env.SUPABASE_URL || '';
+      process.env.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 
       if (env.HYPERDRIVE && env.HYPERDRIVE.connectionString) {
         process.env.DATABASE_URL = env.HYPERDRIVE.connectionString;

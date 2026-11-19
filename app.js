@@ -26,6 +26,7 @@ const meetingsRoute = require('./routes/meetings');
 const passwordChangeRoute = require('./routes/password-change');
 const chatbotRoute = require('./routes/chatbot');
 const filesRoute = require('./routes/files');
+const adminRoute = require('./routes/admin');
 
 const app = express();
 const rootDir = typeof __dirname === 'string' ? __dirname : '';
@@ -246,6 +247,7 @@ app.use('/api/meetings', meetingsRoute);
 app.use('/api/password-change', passwordChangeRoute);
 app.use('/api/chatbot', chatbotRoute);
 app.use('/api/files', filesRoute);
+app.use('/api/admin', adminRoute);
 
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {

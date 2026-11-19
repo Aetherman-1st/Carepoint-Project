@@ -5,6 +5,7 @@ const { createSession, sessionCookie, requestIsSecure } = require('../lib/sessio
 const { isAdminEmail, roleHome, ADMIN_APP_URL } = require('../lib/auth');
 const { sendLoginCode } = require('../lib/mailer');
 const { hashPassword, verifyPassword } = require('../lib/password');
+const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 
@@ -96,6 +97,12 @@ router.post('/', async (req, res) => {
     ]);
 
     if (result.rows.length === 0) {
+      await logAudit({
+        req,
+        actorEmail: String(email).trim().toLowerCase(),
+        action: 'login_failed',
+        details: { reason: 'email_not_found' }
+      });
       return res.status(404).json({
         code: 'email_not_found',
         message: 'No CarePoint account was found for this email. Check the spelling or create an account.'
@@ -106,6 +113,15 @@ router.post('/', async (req, res) => {
     const match = await verifyPassword(password, user.password_hash);
 
     if (!match) {
+      await logAudit({
+        req,
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'login_failed',
+        entityType: 'user',
+        entityId: user.id,
+        details: { reason: 'wrong_password' }
+      });
       return res.status(401).json({
         code: 'wrong_password',
         message: 'The password you entered is incorrect. Please try again.'
@@ -113,6 +129,15 @@ router.post('/', async (req, res) => {
     }
 
     if (user.banned_at) {
+      await logAudit({
+        req,
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'login_failed',
+        entityType: 'user',
+        entityId: user.id,
+        details: { reason: 'account_banned' }
+      });
       return res.status(403).json({
         code: 'account_banned',
         message: 'This account has been banned. Contact the CarePoint team if you believe this is a mistake.'
@@ -120,6 +145,15 @@ router.post('/', async (req, res) => {
     }
 
     if (user.role === 'admin' || isAdminEmail(user.email)) {
+      await logAudit({
+        req,
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'login_failed',
+        entityType: 'user',
+        entityId: user.id,
+        details: { reason: 'admin_login_moved' }
+      });
       return res.status(403).json({
         code: 'admin_login_moved',
         message: 'Administrator accounts sign in at the CarePoint admin dashboard.',
@@ -128,6 +162,15 @@ router.post('/', async (req, res) => {
     }
 
     if (!user.email_verified_at) {
+      await logAudit({
+        req,
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'login_failed',
+        entityType: 'user',
+        entityId: user.id,
+        details: { reason: 'email_not_verified' }
+      });
       return res.status(403).json({
         code: 'email_not_verified',
         message: 'Please verify your email before logging in.',
@@ -174,6 +217,7 @@ router.post('/verify', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await logAudit({ req, action: 'login_failed', details: { reason: 'invalid_challenge' } });
       return res.status(400).json({ message: 'This code is invalid. Please log in again.' });
     }
 
@@ -203,6 +247,14 @@ router.post('/verify', async (req, res) => {
 
     if (record.attempts >= MAX_ATTEMPTS) {
       await pool.query('UPDATE login_codes SET consumed = true WHERE id = $1', [record.id]);
+      await logAudit({
+        req,
+        actorId: record.user_id,
+        actorEmail: record.email,
+        action: 'login_locked_out',
+        entityType: 'user',
+        entityId: record.user_id
+      });
       return res.status(429).json({ message: 'Too many incorrect attempts. Please request a new code.' });
     }
 
@@ -212,6 +264,26 @@ router.post('/verify', async (req, res) => {
       const attempts = record.attempts + 1;
       await pool.query('UPDATE login_codes SET attempts = $1 WHERE id = $2', [attempts, record.id]);
       const remaining = MAX_ATTEMPTS - attempts;
+      if (remaining <= 0) {
+        await logAudit({
+          req,
+          actorId: record.user_id,
+          actorEmail: record.email,
+          action: 'login_locked_out',
+          entityType: 'user',
+          entityId: record.user_id
+        });
+      } else {
+        await logAudit({
+          req,
+          actorId: record.user_id,
+          actorEmail: record.email,
+          action: 'login_failed',
+          entityType: 'user',
+          entityId: record.user_id,
+          details: { reason: 'invalid_code', remaining }
+        });
+      }
       return res.status(401).json({
         message:
           remaining > 0
@@ -229,6 +301,15 @@ router.post('/verify', async (req, res) => {
       requestIp(req),
       record.user_id
     ]);
+
+    await logAudit({
+      req,
+      actorId: record.user_id,
+      actorEmail: record.email,
+      action: 'login_success',
+      entityType: 'user',
+      entityId: record.user_id
+    });
 
     const role = record.role || 'user';
     const token = createSession(
