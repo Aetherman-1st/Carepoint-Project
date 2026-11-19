@@ -15,6 +15,9 @@ async function getBackend(env) {
       process.env.CF_WORKER = '1';
       process.env.SMTP_USER = env.SMTP_USER || '';
       process.env.SMTP_PASS = env.SMTP_PASS || '';
+      process.env.SMTP_HOST = env.SMTP_HOST || '';
+      process.env.SMTP_PORT = env.SMTP_PORT || '';
+      process.env.SMTP_SECURE = env.SMTP_SECURE || '';
       process.env.MAIL_FROM = env.MAIL_FROM || process.env.MAIL_FROM || '';
       process.env.SUPABASE_URL = env.SUPABASE_URL || process.env.SUPABASE_URL || '';
       process.env.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
