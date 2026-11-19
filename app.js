@@ -260,6 +260,7 @@ app.use('/admin-auth', (req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', ADMIN_APP_URL);
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Expose-Headers', 'Retry-After');
     res.setHeader('Vary', 'Origin');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);

@@ -44,6 +44,15 @@
           <p class="auth-alt"><a href="./forgot-password.html">Forgot password?</a></p>
         </div>
 
+        <div id="lockoutPanel" class="hidden" role="alert">
+          <div class="auth-heading">
+            <h1>Timed out</h1>
+            <p>Too many failed sign-in attempts. For security, the admin portal is locked.</p>
+          </div>
+          <p class="form-status" style="text-align:center;font-size:1.25rem;margin:18px 0;">Try again in <strong id="lockoutCountdown">5:00</strong></p>
+          <p class="cell-sub" style="text-align:center;">The same limit applies to every administrator account.</p>
+        </div>
+
         <div id="mfaPanel" class="hidden">
           <div class="auth-heading">
             <h2 id="mfaTitle">Two-factor authentication</h2>

@@ -9,6 +9,8 @@
   });
 
   const loginPanel = document.getElementById('loginPanel');
+  const lockoutPanel = document.getElementById('lockoutPanel');
+  const lockoutCountdown = document.getElementById('lockoutCountdown');
   const mfaPanel = document.getElementById('mfaPanel');
   const form = document.getElementById('adminLoginForm');
   const emailInput = document.getElementById('email');
@@ -48,6 +50,35 @@
   function clearMfaError() {
     mfaError.textContent = '';
     mfaError.classList.remove('show');
+  }
+
+  let lockoutTimer = null;
+
+  function showLockout(seconds) {
+    loginPanel.classList.add('hidden');
+    mfaPanel.classList.add('hidden');
+    lockoutPanel.classList.remove('hidden');
+    let remaining = Math.max(1, Math.floor(Number(seconds) || 300));
+
+    function render() {
+      const minutes = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      lockoutCountdown.textContent = minutes + ':' + String(secs).padStart(2, '0');
+    }
+
+    render();
+    if (lockoutTimer) clearInterval(lockoutTimer);
+    lockoutTimer = setInterval(function () {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(lockoutTimer);
+        lockoutTimer = null;
+        lockoutPanel.classList.add('hidden');
+        showLogin();
+        return;
+      }
+      render();
+    }, 1000);
   }
 
   function showLogin() {
@@ -176,6 +207,11 @@
       });
       const payload = await response.json().catch(function () { return null; });
 
+      if (response.status === 429) {
+        clearError();
+        showLockout(Number(response.headers.get('retry-after')) || 300);
+        return;
+      }
       if (!response.ok || !payload || !payload.access_token || !payload.refresh_token) {
         showError((payload && payload.message) || 'Invalid email or password.');
         return;

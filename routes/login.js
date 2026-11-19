@@ -10,7 +10,7 @@ const loginLimiter = require('../lib/login-attempts');
 
 const router = express.Router();
 
-const PUBLIC_LIMITS = { maxAttempts: 10, windowSeconds: 10 * 60, cooldownSeconds: 10 * 60 };
+const PUBLIC_LIMITS = { maxAttempts: 10, windowSeconds: 7 * 60, cooldownSeconds: 7 * 60 };
 
 async function recordFailureSafe(keys) {
   try {

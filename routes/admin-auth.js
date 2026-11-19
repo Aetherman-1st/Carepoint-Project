@@ -8,9 +8,9 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://upldnuraxojivoqvckzt.s
 const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY || 'sb_publishable_Mxc0T3RIAncl8efvHOvjAg_l_yAY7lq';
 
-const MAX_ATTEMPTS = 4;
-const WINDOW_SECONDS = 15 * 60;
-const COOLDOWN_SECONDS = 15 * 60;
+const MAX_ATTEMPTS = 5;
+const WINDOW_SECONDS = 5 * 60;
+const COOLDOWN_SECONDS = 5 * 60;
 const LIMITS = { maxAttempts: MAX_ATTEMPTS, windowSeconds: WINDOW_SECONDS, cooldownSeconds: COOLDOWN_SECONDS };
 
 router.post('/login', async (req, res) => {
