@@ -1,8 +1,10 @@
+const crypto = require('crypto');
 const express = require('express');
 const pool = require('../db');
 const { requireUser } = require('../lib/auth');
 const { createSession, sessionCookie, requestIsSecure } = require('../lib/session');
 const { isPersonName, isPhone } = require('../lib/validate');
+const { ValidationError, validateUpload } = require('../lib/file-validation');
 
 const router = express.Router();
 const MAX_AVATAR_BYTES = 512 * 1024;
@@ -12,30 +14,7 @@ function cleanText(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-function imageMatchesType(buffer, type) {
-  if (type === 'jpeg') {
-    return buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-  }
-
-  if (type === 'png') {
-    return (
-      buffer.length > 8 &&
-      buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
-    );
-  }
-
-  if (type === 'webp') {
-    return (
-      buffer.length > 12 &&
-      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
-      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
-    );
-  }
-
-  return false;
-}
-
-function normalizeAvatar(value) {
+async function normalizeAvatar(value) {
   if (value === null || value === '') return null;
   if (typeof value !== 'string') {
     const error = new Error('Please choose a valid profile photo.');
@@ -54,7 +33,7 @@ function normalizeAvatar(value) {
   const base64 = match[2].replace(/\s/g, '');
   const buffer = Buffer.from(base64, 'base64');
 
-  if (!buffer.length || !imageMatchesType(buffer, type)) {
+  if (!buffer.length) {
     const error = new Error('That profile photo could not be read.');
     error.status = 400;
     throw error;
@@ -66,7 +45,22 @@ function normalizeAvatar(value) {
     throw error;
   }
 
-  return `data:image/${type};base64,${buffer.toString('base64')}`;
+  let normalized;
+  try {
+    normalized = await validateUpload(
+      buffer,
+      `${crypto.randomUUID()}.${type === 'jpeg' ? 'jpg' : type}`
+    );
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      const error = new Error(err.message);
+      error.status = 400;
+      throw error;
+    }
+    throw err;
+  }
+
+  return `data:${normalized.mimeType};base64,${normalized.buffer.toString('base64')}`;
 }
 
 function profileFields(row) {
@@ -117,7 +111,7 @@ router.put('/', requireUser, async (req, res) => {
 
   try {
     const hasAvatarUpdate = Object.prototype.hasOwnProperty.call(req.body || {}, 'avatar_url');
-    const avatarUrl = hasAvatarUpdate ? normalizeAvatar(req.body.avatar_url) : null;
+    const avatarUrl = hasAvatarUpdate ? await normalizeAvatar(req.body.avatar_url) : null;
     const result = hasAvatarUpdate
       ? await pool.query(
           `UPDATE users
