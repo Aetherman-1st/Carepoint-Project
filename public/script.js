@@ -215,7 +215,7 @@ loginForm.addEventListener('submit', async (e) => {
 
     goToDashboard(data.user, data.redirect);
   } catch (err) {
-    showError('Something went wrong');
+    showError(window.CarePointErrors ? window.CarePointErrors.messageFor(0, null, 'Something went wrong') : 'Something went wrong');
     btn.textContent = 'Log in';
     btn.disabled = false;
     btn.classList.remove('is-loading');

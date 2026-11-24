@@ -181,10 +181,24 @@ function renderMeetings(meetings) {
 }
 
 async function loadMeetings() {
+  if (meetingList && !meetingList.children.length) {
+    meetingList.innerHTML = '<div class="empty loading-state">Loading your meetings...</div>';
+  }
   try {
     const response = await fetch('/api/meetings');
-    if (!response.ok) throw new Error('Failed');
-    const data = await response.json();
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!response.ok) {
+      throw new Error(
+        window.CarePointErrors
+          ? window.CarePointErrors.messageFor(response.status, data, 'Could not load your meetings.')
+          : 'Could not load your meetings.'
+      );
+    }
 
     const configured = data.zoomConfigured !== false;
     const ready = data.zoomReady !== false;
@@ -211,7 +225,9 @@ async function loadMeetings() {
 
     renderMeetings(Array.isArray(data.meetings) ? data.meetings : []);
   } catch (err) {
-    meetingList.innerHTML = '<div class="empty">Could not load your meetings. Please refresh.</div>';
+    meetingList.innerHTML = `<div class="empty">${esc(
+      err.message || 'Could not load your meetings. Please refresh.'
+    )}</div>`;
   }
 }
 

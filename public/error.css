@@ -1,0 +1,57 @@
+.cp-error-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-error-hero {
+  padding-bottom: clamp(52px, 7vw, 84px);
+}
+
+.cp-error-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cp-error-hero h1 {
+  max-width: 22ch;
+}
+
+.cp-error-hero p {
+  max-width: 52ch;
+}
+
+.cp-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.cp-error-note {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .cp-error-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cp-error-actions .btn {
+    justify-content: center;
+    text-align: center;
+  }
+}

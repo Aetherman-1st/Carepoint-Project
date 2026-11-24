@@ -192,7 +192,7 @@ function clinicStateMarkup(message, withClear) {
   return `
     <div class="clinic-state${withClear ? ' clinic-state-empty' : ''}">
       <span class="clinic-state-icon" aria-hidden="true">${clinicCrossIcon}</span>
-      <p>${message}</p>
+      <p>${esc(message)}</p>
       ${
         withClear
           ? '<button type="button" class="clinic-clear-btn js-clear-search">Clear search</button>'
@@ -326,19 +326,34 @@ async function loadSession() {
 }
 
 async function loadClinics() {
+  if (clinicGrid && !clinicGrid.children.length) {
+    clinicGrid.innerHTML = clinicStateMarkup('Loading clinics...', false);
+  }
   try {
     const response = await fetch('/api/clinics');
-    if (!response.ok) throw new Error('Failed');
-    clinics = await response.json();
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!response.ok) {
+      const message = window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not load clinics.')
+        : 'Could not load clinics.';
+      throw new Error(message);
+    }
+    clinics = Array.isArray(data) ? data : [];
     renderChips();
     renderClinics(true);
     renderServices();
   } catch (err) {
+    const message = err.message || 'Could not load clinics. Please try again.';
     if (clinicGrid) {
-      clinicGrid.innerHTML = clinicStateMarkup('Could not load clinics.', false);
+      clinicGrid.innerHTML = clinicStateMarkup(message, false);
     }
     if (serviceList) {
-      serviceList.innerHTML = '<p class="empty-state">Could not load services.</p>';
+      serviceList.innerHTML = '<p class="empty-state">Could not load services. Please try again.</p>';
     }
   }
 }

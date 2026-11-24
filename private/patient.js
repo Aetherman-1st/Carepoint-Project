@@ -166,10 +166,26 @@ async function loadSession() {
 async function loadClinics() {
   try {
     const response = await fetch('/api/clinics');
-    clinics = await response.json();
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!response.ok) {
+      const message = window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not load clinics.')
+        : 'Could not load clinics.';
+      throw new Error(message);
+    }
+    clinics = Array.isArray(data) ? data : [];
     fillClinics();
+    if (clinics.length === 0) {
+      clinicSelect.innerHTML = '<option value="">No clinics available yet</option>';
+    }
   } catch (err) {
-    clinicSelect.innerHTML = '<option value="">Clinics unavailable</option>';
+    clinicSelect.innerHTML = `<option value="">${esc(err.message || 'Clinics unavailable')}</option>`;
+    showToast(err.message || 'Could not load clinics. Please try again.', 'err');
   }
 }
 
@@ -271,8 +287,16 @@ function renderAppointments() {
   const list = sortAppointments(filteredAppointments());
 
   if (list.length === 0) {
-    appointmentList.innerHTML =
-      '<div class="empty">No appointments yet.</div>';
+    const filter = apptFilter.value;
+    let message = 'You have no appointments yet.';
+    if (filter === 'upcoming') message = 'You have no upcoming appointments.';
+    else if (filter === 'past') message = 'You have no past appointments yet.';
+    else if (filter === 'cancelled') message = 'You have no cancelled appointments.';
+
+    const showBookLink = filter === 'all' || filter === 'upcoming';
+    appointmentList.innerHTML = `<div class="empty"><p>${message}${
+      showBookLink ? ' <a href="/patient#booking">Book one now</a>.' : ''
+    }</p></div>`;
     return;
   }
 
@@ -319,15 +343,31 @@ function renderAppointments() {
 }
 
 async function loadAppointments() {
+  if (appointmentList && !appointmentList.querySelector('.appt-item')) {
+    appointmentList.innerHTML = '<div class="empty loading-state">Loading your appointments...</div>';
+  }
   try {
     const response = await fetch('/api/appointments');
-    if (!response.ok) throw new Error('Failed');
-    appointments = await response.json();
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!response.ok) {
+      const message = window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not load your appointments.')
+        : 'Could not load your appointments.';
+      throw new Error(message);
+    }
+    appointments = Array.isArray(data) ? data : [];
     renderStats();
     renderAppointments();
     renderCharts();
   } catch (err) {
-    appointmentList.innerHTML = '<div class="empty">Could not load your appointments. Please refresh.</div>';
+    appointmentList.innerHTML = `<div class="empty">${esc(
+      err.message || 'Could not load your appointments. Please refresh.'
+    )}</div>`;
     renderCharts();
   }
 }
@@ -602,6 +642,11 @@ bookingForm.addEventListener('submit', async (event) => {
   const clinic = clinics.find((item) => String(item.id) === clinicSelect.value);
   const needsDoctor = Boolean(clinic && clinic.doctors.length > 0);
 
+  if (clinics.length === 0) {
+    setStatus('No clinics are available right now. Please try again later.', 'err');
+    return;
+  }
+
   if (!clinicSelect.value || (needsDoctor && !doctorSelect.value) || !dateInput.value || !timeSelect.value) {
     setStatus(
       needsDoctor
@@ -609,6 +654,19 @@ bookingForm.addEventListener('submit', async (event) => {
         : 'Please choose a clinic, date and time.',
       'err'
     );
+    return;
+  }
+
+  const chosenDate = dateInput.value;
+  const chosenTime = timeSelect.value;
+  if (chosenDate < todayISO()) {
+    setStatus('Appointments cannot be booked in the past. Please choose today or a later date.', 'err');
+    return;
+  }
+
+  const chosenStart = new Date(`${chosenDate}T${chosenTime}`);
+  if (!Number.isNaN(chosenStart.getTime()) && chosenStart.getTime() <= Date.now()) {
+    setStatus('That time has already passed. Please choose a later time.', 'err');
     return;
   }
 
@@ -652,6 +710,22 @@ appointmentList.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-cancel]');
   if (!button) return;
 
+  const appointment = appointments.find((item) => String(item.id) === String(button.dataset.cancel));
+  if (!appointment) {
+    showToast('That appointment could not be found. Please refresh.', 'err');
+    return;
+  }
+
+  if (['Completed', 'Cancelled'].includes(appointment.status)) {
+    showToast(`This appointment is already ${appointment.status.toLowerCase()} and cannot be cancelled.`, 'err');
+    return;
+  }
+
+  if (appointment.appointment_date < todayISO()) {
+    showToast('Past appointments cannot be cancelled.', 'err');
+    return;
+  }
+
   if (!window.confirm('Cancel this appointment?')) return;
 
   button.disabled = true;
@@ -666,17 +740,28 @@ appointmentList.addEventListener('click', async (event) => {
     });
 
     if (!response.ok) {
-      const data = await response.json();
-      window.alert(data.message || 'Could not cancel the appointment.');
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        data = null;
+      }
+      showToast(
+        window.CarePointErrors
+          ? window.CarePointErrors.messageFor(response.status, data, 'Could not cancel the appointment.')
+          : (data && data.message) || 'Could not cancel the appointment.',
+        'err'
+      );
       button.disabled = false;
       button.classList.remove('is-loading');
       button.textContent = 'Cancel appointment';
       return;
     }
 
+    showToast('Appointment cancelled.', 'ok');
     await loadAppointments();
   } catch (err) {
-    window.alert('Could not cancel the appointment. Please try again.');
+    showToast('Could not cancel the appointment. Please try again.', 'err');
     button.disabled = false;
     button.classList.remove('is-loading');
     button.textContent = 'Cancel appointment';
@@ -715,7 +800,18 @@ loadAppointments();
 
   function openRescheduleModal(apptId) {
     const appointment = appointments.find((item) => String(item.id) === String(apptId));
-    if (!appointment) return;
+    if (!appointment) {
+      showToast('That appointment could not be found. Please refresh.', 'err');
+      return;
+    }
+    if (['Completed', 'Cancelled'].includes(appointment.status)) {
+      showToast(`A ${appointment.status.toLowerCase()} appointment cannot be rescheduled.`, 'err');
+      return;
+    }
+    if (appointment.appointment_date < todayISO()) {
+      showToast('Past appointments cannot be rescheduled.', 'err');
+      return;
+    }
     rescheduleAptId.value = appointment.id;
     rescheduleDate.min = todayISO();
     rescheduleDate.value = appointment.appointment_date || '';
@@ -747,32 +843,60 @@ loadAppointments();
       const apptId = rescheduleAptId.value;
       if (!apptId) return closeRescheduleModal();
       if (!rescheduleDate.value || !rescheduleTime.value) {
-        window.alert('Please choose a date and time.');
+        showToast('Please choose a date and time.', 'err');
         return;
       }
+      if (rescheduleDate.value < todayISO()) {
+        showToast('Appointments cannot be rescheduled in the past. Please choose today or later.', 'err');
+        return;
+      }
+      const rescheduleStart = new Date(`${rescheduleDate.value}T${rescheduleTime.value}`);
+      if (!Number.isNaN(rescheduleStart.getTime()) && rescheduleStart.getTime() <= Date.now()) {
+        showToast('That time has already passed. Please choose a later time.', 'err');
+        return;
+      }
+      const rescheduleSubmit = rescheduleForm.querySelector('button[type="submit"]');
       const payload = {
         appointment_date: rescheduleDate.value,
         appointment_time: rescheduleTime.value,
         reason: rescheduleReason.value.trim() || null,
         visit_type: rescheduleVisitType.value
       };
+      if (rescheduleSubmit) {
+        rescheduleSubmit.disabled = true;
+        rescheduleSubmit.textContent = 'Rescheduling...';
+      }
       try {
         const resp = await fetch(`/api/appointments/${apptId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await resp.json();
+        let data = null;
+        try {
+          data = await resp.json();
+        } catch (parseErr) {
+          data = null;
+        }
         if (resp.ok) {
-          window.alert(data.message || 'Appointment rescheduled.');
+          showToast((data && data.message) || 'Appointment rescheduled.', 'ok');
           closeRescheduleModal();
           loadAppointments();
         } else {
-          window.alert(data.message || 'Failed to reschedule.');
+          showToast(
+            window.CarePointErrors
+              ? window.CarePointErrors.messageFor(resp.status, data, 'Failed to reschedule.')
+              : (data && data.message) || 'Failed to reschedule.',
+            'err'
+          );
         }
       } catch (err) {
-        window.alert('Error rescheduling appointment.');
-        console.error(err);
+        showToast('Error rescheduling appointment. Please try again.', 'err');
+      } finally {
+        if (rescheduleSubmit) {
+          rescheduleSubmit.disabled = false;
+          rescheduleSubmit.textContent = 'Reschedule';
+        }
       }
     });
   }

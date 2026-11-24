@@ -82,15 +82,22 @@ function fillProfile(profile) {
 }
 
 async function loadProfile() {
+  setStatus('Loading your profile...', '');
   try {
     const response = await fetch('/api/profile');
-    if (response.status === 401) {
-      window.location.href = '/login?next=/profile';
-      return;
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
     }
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Could not load your profile.');
+    if (!response.ok) {
+      throw new Error(
+        window.CarePointErrors
+          ? window.CarePointErrors.messageFor(response.status, data, 'Could not load your profile.')
+          : (data && data.message) || 'Could not load your profile.'
+      );
+    }
     fillProfile(data.profile);
   } catch (err) {
     setStatus(err.message || 'Could not load your profile.', 'err');

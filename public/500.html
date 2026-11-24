@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Something went wrong | CarePoint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFFFFF'/%3E%3Cpath d='M12 5h8v7h7v8h-7v7h-8v-7H5v-8h7z' fill='%23D62828'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/motion.css">
+  <link rel="stylesheet" href="/chatbot.css">
+  <script src="/motion.js" defer></script>
+  <script src="/chatbot.js" defer></script>
+  <link rel="stylesheet" href="/design.css">
+  <link rel="stylesheet" href="/edge-theme.css">
+  <link rel="stylesheet" href="/error.css">
+  <script src="/design.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/" aria-label="CarePoint home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>CarePoint</span>
+      </a>
+      <nav class="site-nav" id="siteNav" aria-label="Main navigation">
+        <a href="/clinics">Clinics</a>
+        <a href="/services">Services</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <div class="header-actions" id="headerActions">
+        <a class="btn btn-ghost" href="/login" id="loginLink">Log in</a>
+        <a class="btn btn-primary" href="/book" id="bookLink">Book an appointment</a>
+        <a class="btn btn-outline btn-sm hidden" href="/patient" id="portalLink">My portal</a>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="siteNav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="cp-error-main">
+    <section class="page-masthead cp-error-hero">
+      <div class="container page-masthead-inner" data-reveal>
+        <span class="cp-error-code">Error 500</span>
+        <h1>Something went wrong on our end</h1>
+        <p id="errorMessage">Something went wrong on our end. Try again in a moment.</p>
+        <div class="cp-error-actions">
+          <a class="btn btn-primary" id="errorHomeAction" href="/">Back to home</a>
+          <a class="btn btn-outline" href="/clinics">Browse clinics</a>
+        </div>
+        <p class="cp-error-note">Your data is safe. If the problem continues, contact CarePoint support.</p>
+        <svg class="page-ecg" viewBox="0 0 188 20" role="img" aria-label="Heartbeat line">
+          <path class="page-ecg-path" d="M2 12h38l6-6 8 12 8-16 7 18 6-8h36l6-5 7 10 8-14 7 14 6-5h36"></path>
+        </svg>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container cp-footer-grid">
+      <div class="cp-footer-copy">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>CarePoint</span>
+        </a>
+        <p>Book and manage clinic appointments in one calm, private place.</p>
+      </div>
+      <nav class="cp-footer-col" aria-label="Explore">
+        <h2>Explore</h2>
+        <a href="/clinics">Clinics</a>
+        <a href="/services">Services</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/contact">Contact</a>
+      </nav>
+      <nav class="cp-footer-col" aria-label="Account">
+        <h2>Account</h2>
+        <a href="/book">Book a visit</a>
+        <a href="/login">Log in</a>
+        <a href="/signup">Create account</a>
+        <a href="/patient">My portal</a>
+      </nav>
+      <div class="cp-footer-col" aria-label="Trust">
+        <h2>Trust</h2>
+        <span>Verified clinic listings</span>
+        <span>Encrypted account access</span>
+        <span>Clear appointment status</span>
+      </div>
+    </div>
+    <div class="container cp-footer-bottom">
+      <p>© 2026 CarePoint. All rights reserved.</p>
+      <p>For medical emergencies, contact local emergency services.</p>
+    </div>
+  </footer>
+
+  <script src="/error-client.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/site.js"></script>
+</body>
+</html>

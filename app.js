@@ -6,9 +6,7 @@ const pool = require('./db');
 
 const {
   attachUser,
-  roleHome,
-  requireUserPage,
-  requireClinicPage
+  roleHome
 } = require('./lib/auth');
 const { clearSessionCookie, requestIsSecure } = require('./lib/session');
 const { authIp, authEmail, contactIp, contactEmail, localTestBypass } = require('./lib/rate-limit');
@@ -42,9 +40,10 @@ function cloudflareAssets() {
   return globalThis.__cloudflareAssets || null;
 }
 
-async function sendAsset(res, assetPath, fallbackPath) {
+async function sendAsset(res, assetPath, fallbackPath, statusOverride) {
   const assets = cloudflareAssets();
   if (!assets) {
+    if (statusOverride) res.status(statusOverride);
     return res.sendFile(fallbackPath);
   }
 
@@ -54,7 +53,7 @@ async function sendAsset(res, assetPath, fallbackPath) {
     return;
   }
 
-  res.status(response.status);
+  res.status(statusOverride || response.status);
   response.headers.forEach((value, key) => {
     const name = key.toLowerCase();
     if (name === 'content-encoding' || name === 'content-length') return;
@@ -145,51 +144,79 @@ function publicPage(name) {
   };
 }
 
-app.get('/patient', requireUserPage, (req, res, next) => {
+function loginRedirectFor(req) {
+  const reason = req.accountStatus ? '&account=' + req.accountStatus : '';
+  return '/login?next=' + encodeURIComponent(req.originalUrl) + reason;
+}
+
+function sendErrorPage(res, status, query) {
+  const suffix = query || '';
+  return sendAsset(
+    res,
+    '/' + status + '.html' + suffix,
+    path.join(publicDir, status + '.html'),
+    status
+  );
+}
+
+function requirePageRole(role, deniedFor) {
+  return (req, res, next) => {
+    if (!req.user) return res.redirect(loginRedirectFor(req));
+    if (req.user.role !== role) {
+      return sendErrorPage(res, 403, '?for=' + encodeURIComponent(deniedFor)).catch(next);
+    }
+    next();
+  };
+}
+
+const requirePatientPage = requirePageRole('user', 'patient');
+const requireClinicOnlyPage = requirePageRole('clinic', 'clinic');
+
+app.get('/patient', requirePatientPage, (req, res, next) => {
   sendAsset(res, '/patient.html', path.join(privateDir, 'patient.html')).catch(next);
 });
 
-app.get('/patient.html', requireUserPage, (req, res) => {
+app.get('/patient.html', requirePatientPage, (req, res) => {
   res.redirect(301, '/patient' + (req.originalUrl.includes('?') ? '?' + req.originalUrl.split('?')[1] : ''));
 });
 
-app.get('/patient.js', requireUserPage, (req, res, next) => {
+app.get('/patient.js', requirePatientPage, (req, res, next) => {
   sendAsset(res, '/patient.js', path.join(privateDir, 'patient.js')).catch(next);
 });
 
-app.get('/profile', requireUserPage, (req, res, next) => {
+app.get('/profile', requirePatientPage, (req, res, next) => {
   sendAsset(res, '/profile.html', path.join(privateDir, 'profile.html')).catch(next);
 });
 
-app.get('/profile.html', requireUserPage, (req, res) => {
+app.get('/profile.html', requirePatientPage, (req, res) => {
   res.redirect(301, '/profile');
 });
 
-app.get('/profile.js', requireUserPage, (req, res, next) => {
+app.get('/profile.js', requirePatientPage, (req, res, next) => {
   sendAsset(res, '/profile.js', path.join(privateDir, 'profile.js')).catch(next);
 });
 
-app.get('/clinic', requireClinicPage, (req, res, next) => {
+app.get('/clinic', requireClinicOnlyPage, (req, res, next) => {
   sendAsset(res, '/clinic.html', path.join(privateDir, 'clinic.html')).catch(next);
 });
 
-app.get('/clinic.html', requireClinicPage, (req, res) => {
+app.get('/clinic.html', requireClinicOnlyPage, (req, res) => {
   res.redirect(301, '/clinic');
 });
 
-app.get('/clinic.js', requireClinicPage, (req, res, next) => {
+app.get('/clinic.js', requireClinicOnlyPage, (req, res, next) => {
   sendAsset(res, '/clinic.js', path.join(privateDir, 'clinic.js')).catch(next);
 });
 
-app.get('/meetings', requireUserPage, (req, res, next) => {
+app.get('/meetings', requirePatientPage, (req, res, next) => {
   sendAsset(res, '/meetings.html', path.join(privateDir, 'meetings.html')).catch(next);
 });
 
-app.get('/meetings.html', requireUserPage, (req, res) => {
+app.get('/meetings.html', requirePatientPage, (req, res) => {
   res.redirect(301, '/meetings');
 });
 
-app.get('/meetings.js', requireUserPage, (req, res, next) => {
+app.get('/meetings.js', requirePatientPage, (req, res, next) => {
   sendAsset(res, '/meetings.js', path.join(privateDir, 'meetings.js')).catch(next);
 });
 
@@ -285,7 +312,9 @@ app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ message: 'Not found', traceId: req.traceId });
   }
-  res.redirect('/');
+  sendErrorPage(res, 404).catch(() => {
+    res.status(404).type('text').send('Page not found');
+  });
 });
 
 app.use((err, req, res, next) => {
@@ -296,7 +325,17 @@ app.use((err, req, res, next) => {
     return res.status(413).json({ message: 'File is too large.', traceId: req.traceId });
   }
   console.error(err);
-  res.status(500).json({ message: 'Something went wrong', traceId: req.traceId });
+  if (res.headersSent) return next(err);
+
+  if (req.path.startsWith('/api/')) {
+    return res.status(500).json({ message: 'Something went wrong', traceId: req.traceId });
+  }
+
+  const status = Number(err && (err.status || err.statusCode));
+  const pageStatus = status === 403 ? 403 : status === 404 ? 404 : 500;
+  sendErrorPage(res, pageStatus).catch(() => {
+    res.status(pageStatus).type('text').send('Something went wrong');
+  });
 });
 
 module.exports = app;

@@ -87,15 +87,35 @@ function positionIndicator() {
 }
 
 async function loadSession() {
-  const response = await fetch('/api/session');
-  const data = await response.json();
-  if (!data.user || data.user.role !== 'clinic') {
-    window.location.href = '/login?next=' + encodeURIComponent('/clinic');
+  try {
+    const response = await fetch('/api/session');
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
+    }
+    if (!response.ok) {
+      const message = window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not check your session.')
+        : 'Could not check your session.';
+      throw new Error(message);
+    }
+    if (!data.user) {
+      window.location.href = '/login?next=' + encodeURIComponent('/clinic');
+      return null;
+    }
+    if (data.user.role !== 'clinic') {
+      window.location.href = '/login?next=' + encodeURIComponent('/clinic');
+      return null;
+    }
+    const name = data.user.clinic_name || [data.user.first_name, data.user.last_name].filter(Boolean).join(' ');
+    document.getElementById('clinicUserName').textContent = name || data.user.email;
+    return data.user;
+  } catch (err) {
+    showToast(err.message || 'Could not check your session. Please refresh.', 'err');
     return null;
   }
-  const name = data.user.clinic_name || [data.user.first_name, data.user.last_name].filter(Boolean).join(' ');
-  document.getElementById('clinicUserName').textContent = name || data.user.email;
-  return data.user;
 }
 
 function renderStats() {
@@ -131,7 +151,8 @@ function renderRecentAppointments() {
     .slice(0, 5);
 
   if (recent.length === 0) {
-    body.innerHTML = '<tr><td colspan="3"><div class="empty">No appointments yet.</div></td></tr>';
+    body.innerHTML =
+      '<tr><td colspan="3"><div class="empty">No appointments yet. New patient requests will appear here.</div></td></tr>';
     return;
   }
 
@@ -335,9 +356,24 @@ function closePatientModal() {
 }
 
 async function loadProfile() {
+  const details = document.getElementById('clinicDetails');
+  if (details && !details.children.length) {
+    details.innerHTML = '<div class="empty loading-state">Loading clinic details...</div>';
+  }
   const response = await fetch('/api/clinic/profile');
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Could not load clinic profile.');
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (parseErr) {
+    data = null;
+  }
+  if (!response.ok) {
+    throw new Error(
+      window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not load clinic profile.')
+        : (data && data.message) || 'Could not load clinic profile.'
+    );
+  }
   state.profile = data.clinic;
   state.stats = data.stats;
   renderStats();
@@ -346,19 +382,49 @@ async function loadProfile() {
 }
 
 async function loadAppointments() {
+  const body = document.getElementById('clinicAppointments');
+  if (body && !body.children.length) {
+    body.innerHTML = '<tr><td colspan="6"><div class="empty loading-state">Loading appointments...</div></td></tr>';
+  }
   const response = await fetch('/api/clinic/appointments');
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Could not load appointments.');
-  state.appointments = data;
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (parseErr) {
+    data = null;
+  }
+  if (!response.ok) {
+    throw new Error(
+      window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not load appointments.')
+        : (data && data.message) || 'Could not load appointments.'
+    );
+  }
+  state.appointments = Array.isArray(data) ? data : [];
   renderRecentAppointments();
   renderAppointments();
 }
 
 async function loadDoctors() {
+  const body = document.getElementById('clinicDoctors');
+  if (body && !body.children.length) {
+    body.innerHTML = '<tr><td colspan="4"><div class="empty loading-state">Loading doctors...</div></td></tr>';
+  }
   const response = await fetch('/api/clinic/doctors');
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Could not load doctors.');
-  state.doctors = data;
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (parseErr) {
+    data = null;
+  }
+  if (!response.ok) {
+    throw new Error(
+      window.CarePointErrors
+        ? window.CarePointErrors.messageFor(response.status, data, 'Could not load doctors.')
+        : (data && data.message) || 'Could not load doctors.'
+    );
+  }
+  state.doctors = Array.isArray(data) ? data : [];
   renderDoctors();
 }
 
@@ -381,6 +447,24 @@ document.getElementById('clinicAppointments').addEventListener('change', async (
   const requested = select.value;
   if (requested === previous) return;
 
+  const allowed = {
+    Pending: ['Pending', 'Confirmed', 'Cancelled'],
+    Confirmed: ['Confirmed', 'Completed', 'Cancelled'],
+    Completed: ['Completed'],
+    Cancelled: ['Cancelled']
+  };
+  const nextOptions = (allowed[previous] || [previous]).filter((status) => status !== previous);
+  if (!nextOptions.includes(requested)) {
+    select.value = previous;
+    showToast(
+      nextOptions.length
+        ? `A ${previous.toLowerCase()} appointment can only move to ${nextOptions.join(' or ')}.`
+        : `A ${previous.toLowerCase()} appointment cannot be changed.`,
+      'warn'
+    );
+    return;
+  }
+
   select.disabled = true;
   try {
     const response = await fetch(`/api/clinic/appointments/${id}`, {
@@ -388,9 +472,19 @@ document.getElementById('clinicAppointments').addEventListener('change', async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: requested })
     });
-    const data = await response.json();
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      data = null;
+    }
     if (!response.ok) {
-      showToast(data.message || 'Could not update the appointment.', 'warn');
+      showToast(
+        window.CarePointErrors
+          ? window.CarePointErrors.messageFor(response.status, data, 'Could not update the appointment.')
+          : (data && data.message) || 'Could not update the appointment.',
+        'warn'
+      );
       select.value = previous;
       return;
     }
