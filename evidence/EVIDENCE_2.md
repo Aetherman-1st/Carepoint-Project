@@ -38,10 +38,11 @@ Cookie attributes confirmed present on both issued and cleared cookies: `HttpOnl
 ## Preview deployment (production NOT promoted)
 
 - Status: deployed to Preview only
-- Environment: Preview, branch `agent-a-cookie-preview`, source commit `2c9e426`
-- Deployment ID: `df1490b8-55b9-431f-b3cc-2341da65cedf`
-- URL: https://df1490b8.carepoint-admin.pages.dev
-- Alias: https://agent-a-cookie-preview.carepoint-admin.pages.dev
+- Environment: Preview, branch `agent-a-cookie-preview`
+- Latest deployment ID: `de1c5215-d0cf-4696-87ad-939b9fa2c2a7` (source `f3ca8e9`)
+- URL: https://de1c5215.carepoint-admin.pages.dev
+- Alias (stable): https://agent-a-cookie-preview.carepoint-admin.pages.dev
+- Previous deployment: `df1490b8-55b9-431f-b3cc-2341da65cedf` (source `2c9e426`)
 - Production deployment still `2d39e1fe-f5ef-4e08-8f23-92a29229ecbd` (unchanged)
 - Preview env secret `ADMIN_SESSION_SECRET` set via Pages API; production env vars untouched (still empty).
 
@@ -60,9 +61,21 @@ Command shape: `curl -D - <url>` against `https://agent-a-cookie-preview.carepoi
 Static page CSP confirmed live: `connect-src 'self'` only.
 Real cookie attributes observed on the deployed preview: `HttpOnly; Secure; SameSite=Strict`.
 
+## Live success-path verification (real admin account, password not recorded)
+
+Root cause of the first login failure: `GET /auth/v1/factors` returns **405** on this Supabase version, so `/api/mfa/enroll` returned 502 and the UI showed the generic sign-in error. Fixed in `f3ca8e9` by listing factors from `GET /auth/v1/user` (`user.factors`).
+
+| Step | Request | Status | Result |
+|------|---------|--------|--------|
+| L1 | `POST /api/login` (real admin) | 200 | `{"ok":true,"aal":"aal1","mfa":true}` + HttpOnly/Secure/SameSite=Strict cookie |
+| L2 | `GET /api/session` with cookie | 200 | `{"authenticated":true,...,"aal":"aal1"}` |
+| L3 | `POST /api/mfa/enroll` | 200 | `{"enrolled":true,"factor":{"id":"f85b6f5c-..."}}` (existing verified TOTP) |
+| L4 | `POST /api/mfa/verify` bogus code | 400 | `{"message":"That code is invalid. Try again."}` (challenge+verify wiring works) |
+
 ## Blockers / notes (honest status)
 
-- **Success-path login, MFA verify, and one admin action are NOT yet tested live** because no admin test password was supplied. The endpoints are implemented and reach Supabase, but a real admin credential is required to prove the 200 + new-cookie path.
+- Full AAL2 completion still needs the account holder's authenticator 6-digit code; that cannot be automated without the TOTP secret. The verify path is proven by L4 (challenge 200, invalid code 400).
+- One real admin action (ban/unban, status change, reply) still needs a completed AAL2 login to prove end-to-end.
 - Supabase project mismatch: the deployed admin app, RLS SQL, and the API are configured for `upldnuraxojivoqvckzt.supabase.co`. The credentials in the task message are for `poyuxheefybloqywdxac`. I did NOT switch projects (that would break the admin app); I used the project the app is actually wired to.
 - No service_role key used. Data requests are forwarded with the admin's own access token, so RLS still applies.
 - The given `cfat_...`, `ghp_...`, and service_role/secret values were pasted in chat. They should be rotated; none were written to the repo.

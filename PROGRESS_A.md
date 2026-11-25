@@ -11,4 +11,5 @@ Item 6: pending owner apply, then live REST AAL1/no-token checks in evidence/EVI
 - T2.2 added POST /api/mfa/enroll and POST /api/mfa/verify (TOTP server-side, new cookie on AAL2). Build + syntax OK.
 - T2.3 added /api/db/* whitelisted proxy (4 tables + rpc/is_admin), /api/action/* proxy to existing admin API, /api/password/forgot|reset.
 - T2.4 rewrote admin-app JS/HTML to same-origin /api only; removed supabase-js and all storage; CSP connect-src 'self'.
-- T2.5 preview deployed (branch agent-a-cookie-preview, deployment df1490b8-55b9-431f-b3cc-2341da65cedf, source 2c9e426): https://agent-a-cookie-preview.carepoint-admin.pages.dev; 401/403/401/200/401 verified; production untouched; success login/MFA/admin-action test PENDING admin password.
+- T2.5 preview deployed (branch agent-a-cookie-preview, deployment df1490b8-55b9-431f-b3cc-2341da65cedf, source 2c9e426): https://agent-a-cookie-preview.carepoint-admin.pages.dev; 401/403/401/200/401 verified; production untouched.
+- T2.6 fix f3ca8e9: GET /auth/v1/factors is 405, list factors via GET /auth/v1/user; redeployed de1c5215-d0cf-4696-87ad-939b9fa2c2a7; live login 200, session 200 (aal1), enroll 200 (existing TOTP), verify bogus code 400. Full AAL2 + admin action needs the user's authenticator code.
