@@ -94,5 +94,44 @@ Root cause of the first login failure: `GET /auth/v1/factors` returns **405** on
 - Full AAL2 completion still needs the account holder's authenticator 6-digit code; that cannot be automated without the TOTP secret. The verify path is proven by L4 (challenge 200, invalid code 400).
 - One real admin action (ban/unban, status change, reply) still needs a completed AAL2 login to prove end-to-end.
 - Supabase project mismatch: the deployed admin app, RLS SQL, and the API are configured for `upldnuraxojivoqvckzt.supabase.co`. The credentials in the task message are for `poyuxheefybloqywdxac`. I did NOT switch projects (that would break the admin app); I used the project the app is actually wired to.
-- No service_role key used. Data requests are forwarded with the admin's own access token, so RLS still applies.
+- No service_role key was used against this project. The service_role key pasted later decodes to `ref=poyuxheefybloqywdxac` (a different project), so it cannot revoke sessions on `upldnuraxojivoqvckzt`; revocation used the account's own token instead. Data requests are forwarded with the admin's own access token, so RLS still applies.
 - The given `cfat_...`, `ghp_...`, and service_role/secret values were pasted in chat. They should be rotated; none were written to the repo.
+
+## Exposed-session revocation (2026-11-25)
+
+The exposed `cp_admin_session` value was issued by the preview diagnostic login against deployment `df1490b8-55b9-431f-b3cc-2341da65cedf`.
+
+Revocation method: the pasted service_role key belongs to project `poyuxheefybloqywdxac` (decoded `ref` claim), not the project this app uses (`upldnuraxojivoqvckzt`), so it was not used. Instead the account's own access token was used with `scope=global`, which revokes every session for the user (equivalent to an admin logout).
+
+Command shape (password, token, and cookie masked):
+
+```bash
+SB=https://upldnuraxojivoqvckzt.supabase.co
+# 1) obtain an account token (password not recorded)
+curl -s -X POST "$SB/auth/v1/token?grant_type=password" \
+  -H "apikey: $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
+  --data '{"email":"<admin-email>","password":"<redacted>"}'
+# 2) revoke ALL sessions for the user
+curl -i -X POST "$SB/auth/v1/logout?scope=global" \
+  -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $ACCESS_TOKEN"
+# 3) replay the exposed cookie against the preview
+curl -i -H "Cookie: cp_admin_session=AUkHPj00...<redacted>...ptEwA" \
+  https://agent-a-cookie-preview.carepoint-admin.pages.dev/api/session
+```
+
+| Request | Status | Body |
+|---------|--------|------|
+| `POST /auth/v1/logout?scope=global` | 204 | (no content) |
+| `GET /api/session` with exposed cookie | 401 | `{"authenticated":false}` |
+| `GET /api/db/admin_users` with exposed cookie | 401 | `{"message":"Please sign in again."}` |
+
+Notes:
+- The exposed cookie already returned 401 before this explicit revocation: its access token had expired and its refresh token had already been revoked by the earlier production logout (D6), which also used `scope=global`.
+- `scope=global` revokes all sessions for the account, including any active production admin session; the admin must sign in again on production.
+- The cookie is AES-GCM sealed; the plaintext token cannot be read without `ADMIN_SESSION_SECRET`. No secret rotation was needed because the exposed cookie is rejected and its refresh token is revoked.
+
+## Preview database wiring (confirmed 2026-11-25)
+
+- Cloudflare Pages project env vars (queried via the Pages API): preview = `ADMIN_SESSION_SECRET` only; production = `ADMIN_SESSION_SECRET` only. Neither sets `SUPABASE_URL` or `SUPABASE_ANON_KEY`.
+- `admin-app/functions/_lib/core.js:1` hardcodes `DEFAULT_SUPABASE_URL = 'https://upldnuraxojivoqvckzt.supabase.co'` and uses it when `env.SUPABASE_URL` is absent.
+- Therefore preview and production both read/write the **same** Supabase project/database (`upldnuraxojivoqvckzt`). There is no separate preview database.
