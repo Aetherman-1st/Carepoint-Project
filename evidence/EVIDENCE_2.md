@@ -72,6 +72,23 @@ Root cause of the first login failure: `GET /auth/v1/factors` returns **405** on
 | L3 | `POST /api/mfa/enroll` | 200 | `{"enrolled":true,"factor":{"id":"f85b6f5c-..."}}` (existing verified TOTP) |
 | L4 | `POST /api/mfa/verify` bogus code | 400 | `{"message":"That code is invalid. Try again."}` (challenge+verify wiring works) |
 
+## Production promotion
+
+- Production deployment: `2d4edd73-b891-4cd9-b34e-bb8559088bfe`
+- Environment: Production, branch `main`, source commit `d31087d` (same code/config as preview)
+- URL: https://carepoint-admin.pages.dev (also https://2d4edd73.carepoint-admin.pages.dev)
+- Production env secret `ADMIN_SESSION_SECRET` set via `wrangler pages secret put`.
+- Previous production (rollback): `2d39e1fe-f5ef-4e08-8f23-92a29229ecbd`
+
+| # | Request | Status | Result |
+|---|---------|--------|--------|
+| D1 | `GET /api/session` no cookie | 401 | `Set-Cookie: ...HttpOnly; Secure; SameSite=Strict; Max-Age=0` |
+| D2 | `POST /api/login` no Origin | 403 | `{"message":"Request blocked."}` |
+| D3 | `POST /api/login` real admin | 200 | `{"ok":true,"aal":"aal1","mfa":true}` + HttpOnly/Secure/SameSite=Strict cookie |
+| D4 | `GET /api/session` with cookie | 200 | `{"authenticated":true,...,"aal":"aal1"}` |
+| D5 | `POST /api/mfa/enroll` | 200 | `{"enrolled":true,"factor":{"id":"f85b6f5c-..."}}` |
+| D6 | `POST /api/logout` | 200 | `{"ok":true}` + cleared cookie (session revoked) |
+
 ## Blockers / notes (honest status)
 
 - Full AAL2 completion still needs the account holder's authenticator 6-digit code; that cannot be automated without the TOTP secret. The verify path is proven by L4 (challenge 200, invalid code 400).
