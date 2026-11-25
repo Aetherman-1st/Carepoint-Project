@@ -1,12 +1,4 @@
 (function () {
-  const config = window.CAREPOINT_ADMIN_CONFIG || {};
-  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
-  auth: {
-    storage: window.sessionStorage,
-    persistSession: true,
-    autoRefreshToken: true
-  }
-});
   const form = document.getElementById('forgotForm');
   const email = document.getElementById('email');
   const message = document.getElementById('message');
@@ -20,11 +12,15 @@
     button.disabled = true;
     button.textContent = 'Sending...';
     try {
-      await client.auth.resetPasswordForEmail(email.value.trim(), {
-        redirectTo: window.location.origin + '/reset-password.html'
+      await fetch('/api/password/forgot', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.value.trim() })
       });
-    } catch (err) {}
-    finally {
+    } catch (err) {
+      /* always show the generic message */
+    } finally {
       message.textContent = generic;
       message.className = 'form-status ok';
       button.disabled = false;

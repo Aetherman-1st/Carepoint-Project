@@ -4,3 +4,11 @@ Item 3: authored docs/RLS_POLICIES.md (one row per policy/trigger/view/RPC); npm
 Item 4: checked Worker admin data routes; all 4 use requireAdmin which rejects aal != aal2 with 403; no route change needed; node --check exit 0.
 Item 5: committed and pushed; waiting for owner to say "SQL applied".
 Item 6: pending owner apply, then live REST AAL1/no-token checks in evidence/EVIDENCE_1.md and evidence/EVIDENCE_3.md.
+
+## Task 2 — HttpOnly admin session (Agent A)
+- T2.0 rollback saved: production deployment 2d39e1fe-f5ef-4e08-8f23-92a29229ecbd (main, source 3dedf44); repo HEAD 5056230.
+- T2.1 added admin Pages Functions core + POST /api/login, POST /api/logout, GET /api/session, POST /api/reauth; AES-GCM HttpOnly/Secure/SameSite=Strict cookie; Origin guard on mutations. Local: 401/403/401/200.
+- T2.2 added POST /api/mfa/enroll and POST /api/mfa/verify (TOTP server-side, new cookie on AAL2). Build + syntax OK.
+- T2.3 added /api/db/* whitelisted proxy (4 tables + rpc/is_admin), /api/action/* proxy to existing admin API, /api/password/forgot|reset.
+- T2.4 rewrote admin-app JS/HTML to same-origin /api only; removed supabase-js and all storage; CSP connect-src 'self'.
+- T2.5 preview deploy done; live success login/MFA/admin-action test PENDING an admin test password.

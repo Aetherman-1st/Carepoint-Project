@@ -1,13 +1,4 @@
 (function () {
-  const config = window.CAREPOINT_ADMIN_CONFIG || {};
-  const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
-    auth: {
-      storage: window.sessionStorage,
-      persistSession: true,
-      autoRefreshToken: true
-    }
-  });
-
   const loginPanel = document.getElementById('loginPanel');
   const lockoutPanel = document.getElementById('lockoutPanel');
   const lockoutCountdown = document.getElementById('lockoutCountdown');
@@ -31,6 +22,22 @@
   let pendingFactorId = null;
   let enrolling = false;
   let busy = false;
+
+  async function api(path, options) {
+    const settings = options || {};
+    const response = await fetch(path, {
+      credentials: 'same-origin',
+      ...settings,
+      headers: {
+        ...(settings.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(settings.headers || {})
+      }
+    });
+    const payload = await response.json().catch(function () {
+      return null;
+    });
+    return { response, payload };
+  }
 
   function updateLoginState() {
     button.disabled = !(emailInput.value.trim() && passwordInput.value.length > 0);
@@ -110,70 +117,41 @@
     mfaHelp.textContent = enrollment
       ? 'Scan the QR code with your authenticator app, then enter the 6-digit code.'
       : 'Enter the 6-digit code from your authenticator app.';
-    mfaQr.innerHTML = enrollment ? factor.totp.qr_code : '';
-    mfaSecret.textContent = enrollment ? 'Manual key: ' + factor.totp.secret : '';
+    mfaQr.innerHTML = enrollment ? factor.qr_code || '' : '';
+    mfaSecret.textContent = enrollment ? 'Manual key: ' + (factor.secret || '') : '';
     pendingFactorId = factor.id;
     enrolling = enrollment;
     mfaCode.focus();
   }
 
-  async function hasAdminMembership(userId) {
-    const { data, error: memberError } = await client
-      .from('admin_members')
-      .select('role')
-      .eq('auth_user_id', userId)
-      .maybeSingle();
-    return !memberError && Boolean(data);
-  }
-
-  async function beginMfa(session) {
-    const { data, error: factorError } = await client.auth.mfa.listFactors();
-    if (factorError) throw factorError;
-
-    const totp = Array.isArray(data && data.totp) ? data.totp : [];
-    const verified = totp.find((factor) => factor.status === 'verified');
-
-    if (verified) {
-      showMfa(false, verified);
-      return;
+  async function beginMfa() {
+    const { response, payload } = await api('/api/mfa/enroll', { method: 'POST', body: '{}' });
+    if (!response.ok || !payload || !payload.factor) {
+      throw new Error('Could not start two-factor authentication.');
     }
-
-    const { data: enrollment, error: enrollError } = await client.auth.mfa.enroll({
-      factorType: 'totp',
-      friendlyName: 'CarePoint Admin'
-    });
-    if (enrollError) throw enrollError;
-
-    showMfa(true, enrollment);
+    showMfa(!payload.enrolled, payload.factor);
   }
 
-  async function routeSession(session) {
-    if (!(await hasAdminMembership(session.user.id))) {
-      await client.auth.signOut();
+  async function routeSession() {
+    const { response, payload } = await api('/api/session');
+    if (!response.ok || !payload || !payload.authenticated) {
       showLogin();
-      showError('Invalid email or password.');
       return;
     }
 
-    const { data: level, error: levelError } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (levelError) throw levelError;
-
-    if (level && level.currentLevel === 'aal2') {
+    if (payload.aal === 'aal2') {
       window.location.replace('./admin.html');
       return;
     }
 
-    await beginMfa(session);
+    await beginMfa();
   }
 
   async function redirectIfReady() {
-    const { data } = await client.auth.getSession();
-    if (!data.session) return;
-
     try {
-      await routeSession(data.session);
+      await routeSession();
     } catch (err) {
-      await client.auth.signOut();
+      await api('/api/logout', { method: 'POST' }).catch(function () {});
       showLogin();
       showError('Could not start two-factor authentication. Please log in again.');
     }
@@ -187,7 +165,7 @@
 
   mfaBack.addEventListener('click', async function (event) {
     event.preventDefault();
-    await client.auth.signOut();
+    await api('/api/logout', { method: 'POST' }).catch(function () {});
     showLogin();
   });
 
@@ -208,36 +186,24 @@
     button.textContent = 'Signing in...';
 
     try {
-      const base = String(config.publicSiteUrl || '').replace(/\/$/, '');
-      const response = await fetch(base + '/admin-auth/login', {
+      const { response, payload } = await api('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const payload = await response.json().catch(function () { return null; });
 
       if (response.status === 429) {
         clearError();
         showLockout(Number(response.headers.get('retry-after')) || 300);
         return;
       }
-      if (!response.ok || !payload || !payload.access_token || !payload.refresh_token) {
+      if (!response.ok) {
         showError((payload && payload.message) || 'Invalid email or password.');
         return;
       }
 
-      const { data, error: sessionError } = await client.auth.setSession({
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token
-      });
-      if (sessionError || !data.session) {
-        showError('Invalid email or password.');
-        return;
-      }
-
-      await routeSession(data.session);
+      await routeSession();
     } catch (err) {
-      await client.auth.signOut().catch(function () {});
+      await api('/api/logout', { method: 'POST' }).catch(function () {});
       showLogin();
       showError('Could not sign in right now. Please try again.');
     } finally {
@@ -262,19 +228,13 @@
     mfaBtn.textContent = 'Verifying...';
 
     try {
-      const { error: verifyError } = await client.auth.mfa.challengeAndVerify({
-        factorId: pendingFactorId,
-        code
+      const { response, payload } = await api('/api/mfa/verify', {
+        method: 'POST',
+        body: JSON.stringify({ factorId: pendingFactorId, code })
       });
 
-      if (verifyError) {
-        showMfaError('That code is invalid. Try again.');
-        return;
-      }
-
-      const { data: level, error: levelError } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (levelError || !level || level.currentLevel !== 'aal2') {
-        showMfaError('Two-factor authentication is not complete. Try again.');
+      if (!response.ok) {
+        showMfaError((payload && payload.message) || 'That code is invalid. Try again.');
         return;
       }
 

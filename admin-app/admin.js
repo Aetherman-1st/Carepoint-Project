@@ -1,33 +1,46 @@
-const config = window.CAREPOINT_ADMIN_CONFIG || {};
-const client = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
-  auth: {
-    storage: window.sessionStorage,
-    persistSession: true,
-    autoRefreshToken: true
-  }
-});
-
-async function adminRequest(path, options = {}) {
-  const { data } = await client.auth.getSession();
-  const token = data.session && data.session.access_token;
-  if (!token) throw new Error('Please sign in again.');
-
-  const base = String(config.publicSiteUrl || '').replace(/\/$/, '');
-  const response = await fetch(base + path, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {})
-    }
-  });
-
+async function readPayload(response) {
   let payload = null;
   try {
     payload = await response.json();
   } catch (err) {
     payload = null;
   }
+  return payload;
+}
+
+async function dbRequest(path, options = {}) {
+  const response = await fetch('/api/db/' + path, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+    }
+  });
+
+  const payload = await readPayload(response);
+
+  if (!response.ok) {
+    const error = new Error((payload && payload.message) || 'Request failed.');
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
+}
+
+async function adminRequest(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+    }
+  });
+
+  const payload = await readPayload(response);
 
   if (!response.ok) {
     const error = new Error((payload && payload.message) || 'Request failed.');
@@ -131,38 +144,37 @@ function showToast(message, type) {
 
 async function loadSession() {
   try {
-    const { data } = await client.auth.getSession();
-    const session = data.session;
-
-    if (!session) {
+    const response = await fetch('/api/session', { credentials: 'same-origin' });
+    if (!response.ok) {
       window.location.replace('./');
       return null;
     }
 
-    const { data: level } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (!level || level.currentLevel !== 'aal2') {
+    const session = await response.json();
+    if (!session || session.aal !== 'aal2') {
       window.location.replace('./');
       return null;
     }
 
-    const { data: admin, error } = await client.rpc('is_admin');
-    if (error || admin !== true) {
-      await client.auth.signOut();
+    let admin = false;
+    try {
+      admin = await dbRequest('rpc/is_admin', { method: 'POST', body: '{}' });
+    } catch (err) {
+      admin = false;
+    }
+
+    if (admin !== true) {
+      await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(function () {});
       window.location.replace('./');
       return null;
     }
 
-    const member = await client
-      .from('admin_members')
-      .select('user_id, role')
-      .eq('auth_user_id', session.user.id)
-      .maybeSingle();
+    const members = await dbRequest(
+      'admin_members?select=user_id,role&auth_user_id=eq.' + encodeURIComponent(session.userId)
+    );
 
-    state.admin = member.data || null;
-
-    const meta = session.user.user_metadata || {};
-    const name = [meta.first_name, meta.last_name].filter(Boolean).join(' ');
-    document.getElementById('adminName').textContent = name || session.user.email || 'Administrator';
+    state.admin = (members && members[0]) || null;
+    document.getElementById('adminName').textContent = session.name || session.email || 'Administrator';
 
     return session;
   } catch (err) {
@@ -174,22 +186,14 @@ async function loadSession() {
 async function loadData() {
   try {
     const [appointments, messages, users] = await Promise.all([
-      client
-        .from('admin_appointments')
-        .select('*')
-        .order('appointment_date', { ascending: false })
-        .order('appointment_time', { ascending: false }),
-      client.from('admin_contact_messages').select('*').order('created_at', { ascending: false }),
-      client.from('admin_users').select('*').order('created_at', { ascending: false })
+      dbRequest('admin_appointments?select=*&order=appointment_date.desc,appointment_time.desc'),
+      dbRequest('admin_contact_messages?select=*&order=created_at.desc'),
+      dbRequest('admin_users?select=*&order=created_at.desc')
     ]);
 
-    if (appointments.error) throw appointments.error;
-    if (messages.error) throw messages.error;
-    if (users.error) throw users.error;
-
-    state.appointments = appointments.data || [];
-    state.messages = messages.data || [];
-    state.users = users.data || [];
+    state.appointments = appointments || [];
+    state.messages = messages || [];
+    state.users = users || [];
     renderAll();
   } catch (err) {
     document.getElementById('recentAppointments').innerHTML =
@@ -470,22 +474,19 @@ async function loadPatientProfile(id) {
   const request = ++profileRequest;
 
   try {
-    const [profile, appointments] = await Promise.all([
-      client.from('admin_users').select('*').eq('id', id).maybeSingle(),
-      client
-        .from('admin_appointments')
-        .select('*')
-        .eq('user_id', id)
-        .order('appointment_date', { ascending: false })
-        .order('appointment_time', { ascending: false })
+    const [profiles, appointments] = await Promise.all([
+      dbRequest('admin_users?select=*&id=eq.' + encodeURIComponent(id)),
+      dbRequest(
+        'admin_appointments?select=*&user_id=eq.' +
+          encodeURIComponent(id) +
+          '&order=appointment_date.desc,appointment_time.desc'
+      )
     ]);
 
     if (request !== profileRequest) return;
-    if (profile.error) throw profile.error;
-    if (appointments.error) throw appointments.error;
-    if (!profile.data) throw new Error('Account not found.');
+    if (!Array.isArray(profiles) || profiles.length === 0) throw new Error('Account not found.');
 
-    state.activeProfile = { user: profile.data, appointments: appointments.data || [] };
+    state.activeProfile = { user: profiles[0], appointments: appointments || [] };
     renderPatientProfile(state.activeProfile);
   } catch (err) {
     if (request !== profileRequest) return;
@@ -568,22 +569,14 @@ function requireReauth() {
 }
 
 async function verifyAdminPassword(password) {
-  const { data } = await client.auth.getSession();
-  const email = data.session && data.session.user && data.session.user.email;
-  if (!email) return false;
-
-  const response = await fetch(`${config.supabaseUrl}/auth/v1/token?grant_type=password`, {
+  const response = await fetch('/api/reauth', {
     method: 'POST',
-    headers: {
-      apikey: config.supabaseKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ email, password })
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
   });
 
-  if (!response.ok) return false;
-  const payload = await response.json();
-  return Boolean(payload && payload.access_token);
+  return response.ok;
 }
 
 async function setUserBan(id, banned, button) {
@@ -605,7 +598,7 @@ async function setUserBan(id, banned, button) {
   }
 
   try {
-    const data = await adminRequest(`/api/admin/users/${id}`, {
+    const data = await adminRequest(`/api/action/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ banned })
     });
@@ -653,7 +646,7 @@ async function deleteUserAccount(id, button) {
   }
 
   try {
-    await adminRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
+    await adminRequest(`/api/action/users/${id}`, { method: 'DELETE' });
 
     closePatientModal();
     await loadData();
@@ -988,7 +981,7 @@ document.getElementById('adminAppointments').addEventListener('change', async (e
   }
 
   try {
-    await adminRequest(`/api/admin/appointments/${id}/status`, {
+    await adminRequest(`/api/action/appointments/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status: requested })
     });
@@ -1038,7 +1031,7 @@ document.getElementById('messageList').addEventListener('submit', async (event) 
   status.className = 'form-status';
 
   try {
-    await adminRequest('/api/admin/reply', {
+    await adminRequest('/api/action/reply', {
       method: 'POST',
       body: JSON.stringify({ message_id: id, body })
     });
@@ -1096,7 +1089,7 @@ document.getElementById('reauthForm').addEventListener('submit', async (event) =
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
-  await client.auth.signOut();
+  await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(function () {});
   window.location.replace('./');
 });
 
