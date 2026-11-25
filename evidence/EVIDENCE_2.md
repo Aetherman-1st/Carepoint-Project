@@ -35,11 +35,30 @@ Cookie attributes confirmed present on both issued and cleared cookies: `HttpOnl
 - No `localStorage`, `sessionStorage`, `persistSession`, `supabase-js` usage remains in `admin-app/*.js`.
 - CSP `connect-src 'self'` (external Supabase and public-site origins removed).
 
-## Preview deployment
+## Preview deployment (production NOT promoted)
 
-- Status: PENDING (filled after preview deploy)
-- URL:
-- Deployment ID:
+- Status: deployed to Preview only
+- Environment: Preview, branch `agent-a-cookie-preview`, source commit `2c9e426`
+- Deployment ID: `df1490b8-55b9-431f-b3cc-2341da65cedf`
+- URL: https://df1490b8.carepoint-admin.pages.dev
+- Alias: https://agent-a-cookie-preview.carepoint-admin.pages.dev
+- Production deployment still `2d39e1fe-f5ef-4e08-8f23-92a29229ecbd` (unchanged)
+- Preview env secret `ADMIN_SESSION_SECRET` set via Pages API; production env vars untouched (still empty).
+
+## Live preview verification
+
+Command shape: `curl -D - <url>` against `https://agent-a-cookie-preview.carepoint-admin.pages.dev`
+
+| # | Request | Status | Key response |
+|---|---------|--------|--------------|
+| P1 | `GET /api/session` no cookie | 401 | `set-cookie: cp_admin_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`; `{"authenticated":false}` |
+| P2 | `POST /api/login` no Origin | 403 | `{"message":"Request blocked."}` |
+| P3 | `POST /api/login` Origin + invalid creds | 401 | `{"message":"Invalid email or password."}` (proves preview secret + Supabase wiring: not a 500) |
+| P4 | `POST /api/logout` Origin | 200 | `set-cookie: cp_admin_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`; `{"ok":true}` |
+| P5 | `GET /api/db/admin_users` no cookie | 401 | clearing Set-Cookie + `{"message":"Please sign in again."}` |
+
+Static page CSP confirmed live: `connect-src 'self'` only.
+Real cookie attributes observed on the deployed preview: `HttpOnly; Secure; SameSite=Strict`.
 
 ## Blockers / notes (honest status)
 
