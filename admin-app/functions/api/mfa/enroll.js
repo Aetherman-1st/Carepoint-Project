@@ -28,7 +28,7 @@ export async function onRequest(context) {
 
   let listResponse;
   try {
-    listResponse = await sbFetch(env, '/auth/v1/factors', { token });
+    listResponse = await sbFetch(env, '/auth/v1/user', { token });
   } catch (err) {
     return applyRefresh(env, session, json({ message: 'Could not load two-factor settings.' }, 502));
   }
@@ -38,7 +38,7 @@ export async function onRequest(context) {
   }
 
   const raw = await readJsonSafe(listResponse);
-  const factors = Array.isArray(raw) ? raw : raw && Array.isArray(raw.factors) ? raw.factors : [];
+  const factors = raw && Array.isArray(raw.factors) ? raw.factors : [];
   const totp = factors.filter((factor) => factorKind(factor) === 'totp');
   const verified = totp.find((factor) => factor.status === 'verified');
 
