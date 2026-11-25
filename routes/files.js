@@ -130,7 +130,7 @@ router.post(
     } catch (err) {
       const rejected = err instanceof ValidationError;
       const status = rejected ? 'rejected' : 'scan_failed';
-      const result = rejected ? err.code : 'scan_error';
+      const result = rejected ? err.code : 'check_error';
 
       if (!rejected) {
         console.error('File scan failed:', id);
