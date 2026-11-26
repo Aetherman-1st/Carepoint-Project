@@ -20,9 +20,7 @@ function callBackend(env, request, path, email, ip) {
     'Content-Type': 'application/json',
     Origin: new URL(request.url).origin
   });
-  if (ip && ip !== 'unknown') headers.set('CF-Connecting-IP', ip);
-  const forwarded = request.headers.get('X-Forwarded-For');
-  if (forwarded) headers.set('X-Forwarded-For', forwarded);
+  if (ip && ip !== 'unknown') headers.set('X-Forwarded-For', ip);
 
   return env.BACKEND.fetch(
     new Request(new URL(path, request.url).toString(), {
