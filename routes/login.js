@@ -12,14 +12,6 @@ const router = express.Router();
 
 const PUBLIC_LIMITS = { maxAttempts: 10, windowSeconds: 7 * 60, cooldownSeconds: 7 * 60 };
 
-async function recordFailureSafe(keys) {
-  try {
-    await loginLimiter.recordFailure('public', keys.emailKey, keys.ipKey, PUBLIC_LIMITS);
-  } catch (err) {
-    console.error('Login limiter write failed:', err.message);
-  }
-}
-
 async function resetAttemptsSafe(keys) {
   try {
     await loginLimiter.resetAttempts('public', keys.emailKey, keys.ipKey);
@@ -112,7 +104,7 @@ router.post('/', async (req, res) => {
 
   let limiterKeys = null;
   try {
-    limiterKeys = await loginLimiter.guard('public', req, email, res);
+    limiterKeys = await loginLimiter.guard('public', req, email, res, PUBLIC_LIMITS);
   } catch (err) {
     console.error('Login limiter check failed:', err.message);
     return res.status(503).json({ message: 'Could not sign in right now. Please try again.' });
@@ -125,7 +117,6 @@ router.post('/', async (req, res) => {
     ]);
 
     if (result.rows.length === 0) {
-      await recordFailureSafe(limiterKeys);
       await logAudit({
         req,
         actorEmail: String(email).trim().toLowerCase(),
@@ -142,7 +133,6 @@ router.post('/', async (req, res) => {
     const match = await verifyPassword(password, user.password_hash);
 
     if (!match) {
-      await recordFailureSafe(limiterKeys);
       await logAudit({
         req,
         actorId: user.id,

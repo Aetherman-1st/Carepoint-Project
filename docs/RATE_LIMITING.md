@@ -16,9 +16,10 @@ process memory.
 | `locked_until` | cooldown expiry, set when `attempts >= maxAttempts` |
 | `updated_at` | used to purge rows older than one day |
 
-The primary key is `(scope, kind, key)`. The read path is a single indexed
-query that takes `max(locked_until)` over the email row and the IP row
-(`lib/login-attempts.js:29`).
+The primary key is `(scope, kind, key)`. The guard performs the atomic upsert
+below for both keys and uses its `RETURNING` values to decide whether the
+request proceeds; `lockedRemainingSeconds()` is the read-only diagnostics
+query.
 
 Requests are keyed by **both** email and IP. A caller who changes
 `cf-connecting-ip` / `x-forwarded-for`, User-Agent or cookies keeps the same
@@ -27,8 +28,8 @@ and stays locked. Both keys must be clean before a credential check proceeds.
 
 ## Why the Postgres counter is sufficient
 
-The update is one atomic statement per key
-(`lib/login-attempts.js:45`):
+The update is one atomic statement per key in `guard()` /
+`checkAndIncrement()` (`lib/login-attempts.js:48`):
 
 ```sql
 INSERT INTO login_attempts (scope, kind, key, attempts, window_started_at,
@@ -39,6 +40,11 @@ ON CONFLICT (scope, kind, key) DO UPDATE SET
 RETURNING attempts, locked_until
 ```
 
+The counter is incremented when the request is admitted; a correct password
+clears both keys with `resetAttempts()`. The `(maxAttempts + 1)`-th failure
+trips the lock, so 12 parallel wrong logins against a 4-attempt limit give
+exactly 4 credential checks and 8 × 429.
+
 - **Atomic.** The increment, window reset and lock decision happen in a
   single statement. Postgres takes a row lock on conflict, so concurrent
   failures from many isolates cannot lose updates or read a stale count.
@@ -48,8 +54,8 @@ RETURNING attempts, locked_until
   (local runs), so counters survive isolate eviction, restarts and
   multi-region routing. A KV binding or an in-process `Map` would be
   eventually consistent or per-isolate and could be bypassed by routing.
-- **Cheap.** One point read on the guarded request, two small upserts on a
-  failure, one delete for rows older than a day. No extra service is needed.
+- **Cheap.** Two small upserts on the guarded request, one delete for rows
+  older than a day. No extra service is needed.
 - **Least privilege.** RLS is enabled with no `anon`/`authenticated` policies;
   only the application role `carepoint_app` is granted DML. Counter keys are
   hashed, so the table holds neither passwords nor plaintext emails/IPs.
@@ -59,7 +65,7 @@ RETURNING attempts, locked_until
 | Route | Scope | Limit | Window | Cooldown |
 | --- | --- | --- | --- | --- |
 | `POST /login` (public) | `public` | 10 failures | 7 min | 7 min |
-| `POST /admin-auth/login` (Worker admin route) | `admin` | 5 failures | 5 min | 5 min |
+| `POST /admin-auth/login` (Worker admin route) | `admin` | 4 failures | 5 min | 5 min |
 
 A correct password clears both keys (`resetAttempts`). A banned or
 unverified public account is not treated as a failed credential for the
