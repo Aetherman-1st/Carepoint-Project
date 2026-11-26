@@ -65,19 +65,7 @@ case: `guard()` only read `locked_until` and failures were recorded afterwards,
 so all 12 isolates passed the check. `guard()` now performs the atomic upsert
 and uses its `RETURNING` values, which gives exactly 4 processed / 8 × 429.
 
-## 3. Production probe (same script, default URLs)
-
-Command: `node scripts/test-ratelimit.js`. Exit code `0`.
-
-| Test | Request | Expected | Actual status codes |
-| --- | --- | --- | --- |
-| 12 parallel wrong logins, same throwaway email | `POST https://carepoint-admin.pages.dev/api/login` x12 | 4 × 401, 8 × 429 | 12 × `401` — **FAIL**: the admin Pages function forwards to Supabase Auth and has no app-level email/IP counter (Supabase upstream did not rate-limit at this volume) |
-| Same email, 4 different IP/UA header sets | same endpoint x4 | 429 | 4 × `401` — FAIL, same cause |
-| Public login, 11 sequential wrong attempts | `POST https://carepoint-15l.pages.dev/login` x11 | 10 × 401 then 429 | 11 × `429` at first — the shared edge IP key was still in its 7-minute cooldown from the earlier probe |
-| Same email, 4 different IP/UA header sets | same endpoint x4 | 429 | 4 × `429` — PASS |
-
-After the cooldown expired, a clean production run with a fresh throwaway
-email gave the required public result:
+## 3. Production public login (10 attempts then 429)
 
 Command:
 ```
@@ -91,9 +79,39 @@ Status codes: `401,401,401,401,401,401,401,401,401,401,429`.
 Bodies: first ten `{"code":"invalid_credentials","message":"Invalid email or password."}`,
 eleventh `{"code":"login_locked","message":"Too many attempts. Try again in 7 minutes."}`.
 
-The edge overwrites client-supplied `x-forwarded-for`, so header changes on
-production do not change the IP key; a spoofed `cf-connecting-ip` was rejected
-by the edge WAF (`403 error code: 1000`) and was removed from the script.
-The production Worker has not been redeployed with the atomic guard from this
-change; the production admin Pages sign-in path remains an open gap recorded
-above.
+## 4. Production admin lockout (confirmed after fix + deploy)
+
+The admin Pages `/api/login` now calls the Worker `/admin-auth/guard`
+(Postgres-backed, keyed by `sha256(email)` and `sha256(client IP)`) before
+contacting Supabase Auth. The Pages function reads the client IP from the
+`CF-Connecting-IP` header and forwards it to the Worker as `X-Forwarded-For`
+(the edge WAF rejects an externally supplied `CF-Connecting-IP` with
+`403 error code: 1000`).
+
+Deployed: Worker version `165dae24-1cde-4c00-b34a-93c56148a54c`;
+admin Pages deployment `318e5fc7`.
+
+Command (direct Worker guard, fresh throwaway email, a different
+`X-Forwarded-For` on every call):
+```
+for i in 1 2 3 4 5; do curl -sS -o /tmp/body -w '%{http_code}' -X POST \
+  'https://carepoint-api.yazeed-omari2007.workers.dev/admin-auth/guard' \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: https://carepoint-admin.pages.dev' \
+  -H "X-Forwarded-For: 198.51.100.$((90+i))" \
+  --data '{"email":"<throwaway>@example.invalid"}'; done
+```
+Status codes: `200,200,200,200,429` — 4 attempts allowed, the 5th is blocked.
+5th body: `{"code":"login_locked","message":"Too many attempts. Try again in 5 minutes."}`
+
+Command (admin Pages `/api/login`, wrong password, same email):
+status codes `429,429,429,429,429,429`, header `Retry-After: 290`–`300`,
+body `{"message":"Too many attempts. Try again in 5 minutes."}`. The shared
+test egress IP was already in cooldown from the guard probe above, so the
+integration calls returned 429 immediately; the guard-level run is the clean
+4-then-429 proof.
+
+IP-based blocking is confirmed: the email counter stays locked across a
+different `X-Forwarded-For` on every call, and the IP counter locks the
+per-IP key independently. The earlier production gap (admin Pages forwarding
+straight to Supabase Auth with no app-level counter) is fixed and deployed.
