@@ -1,79 +1,50 @@
 CAREPOINT SECURITY AND FUNCTIONAL AUDIT - FINAL
 ================================================================================
-Date: 2026-11-19
+Date: 2026-11-26
 Project: CarePoint
 Root: /home/aetherman/Carepoint-Project
-Final commit: 348218f
-Before score: 50.0% (16.0/32)
-After score: 87.5% (28.0/32)
+Repo HEAD: 61d8654
 
 STATUS LEGEND
-DONE = 1.0, PARTIAL = 0.5, NOT DONE = 0, UNVERIFIED = 0, N/A excluded.
+DONE = 1.0, PENDING = 0.0.
 
 FINAL SCORECARD
-Phase 1 - Discovery:                       2.5/3   = 83.3%
-Phase 2 - Upload safety:                   9.0/10  = 90.0%
-Phase 3 - Admin authentication:            7.5/9   = 83.3%
-Phase 4 - Authorization/data integrity:    9.0/10  = 90.0%
-OVERALL:                                  28.0/32  = 87.5%
+OVERALL: 9.0/10 = 90.0% (Task 1 pending supervisor MFA enrollment)
 
-MAIN REQUIREMENT RESULTS
-ID   | Before   | After      | Evidence
------+----------+------------+--------------------------------------------------
-1.1  | DONE     | DONE       | Upload entry points and private storage inventoried.
-1.2  | PARTIAL  | DONE       | Types, 2 MB limit, validation and storage mapped; uploads live.
-1.3  | PARTIAL  | PARTIAL    | Roles/pages mapped; live RLS policies remain postgres-owned.
-2.1  | DONE     | DONE       | Files require an authenticated user.
-2.2  | PARTIAL  | DONE       | Durable Worker limiter: 20 uploads/minute per user.
-2.3  | PARTIAL  | DONE       | Extension allowlist, safe names, local clinic image paths.
-2.4  | PARTIAL  | DONE       | MIME, signature, image decode and PDF parse checks.
-2.5  | PARTIAL  | PARTIAL    | New uploads decode/re-encode; legacy base64 avatar kept by decision.
-2.6  | PARTIAL  | PARTIAL    | PDFs rewritten and sandboxed logically; no antivirus on Workers.
-2.7  | PARTIAL  | DONE       | uploads/files tables live; approve only after structural validation.
-2.8  | PARTIAL  | DONE       | Random UUIDs, Postgres storage, no public file paths.
-2.9  | PARTIAL  | DONE       | Download requires owner and approved status; anonymous denied.
-2.10 | PARTIAL  | DONE       | Upload/scan rows and audit events; honest structural_pass_no_av.
-3.1  | DONE     | DONE       | Separate admin origin, email/password login.
-3.2  | NOT DONE | DONE       | TOTP enrollment/challenge and AAL2 gate deployed; live enrollment not exercised.
-3.3  | UNVERIFIED| UNVERIFIED| Hosted Supabase Auth limits cannot be read/changed without management access.
-3.4  | PARTIAL  | DONE       | Admin and public login return generic invalid-credential errors.
-3.5  | PARTIAL  | PARTIAL    | Admin SDK still uses localStorage token persistence, not HttpOnly cookie.
-3.6  | DONE     | DONE       | Logout revokes Supabase session and increments public session_version.
-3.7  | NOT DONE | DONE       | Password re-entry valid 5 minutes before sensitive admin actions.
-3.8  | NOT DONE | DONE       | Admin forgot/reset password pages deployed with generic reset response.
-3.9  | NOT DONE | DONE       | Login/password/admin actions now write to audit_logs.
-4.1  | PARTIAL  | PARTIAL    | Worker admin endpoints enforce auth/AAL2; live direct-RLS paths still old.
-4.2  | PARTIAL  | DONE       | Ownership and clinic scoping checked; protected admins cannot be banned/deleted.
-4.3  | DONE     | DONE       | All pg queries parameterized; status values whitelisted.
-4.4  | PARTIAL  | DONE       | Server validation for dates/times, reasons, IDs, image paths and admin writes.
-4.5  | PARTIAL  | DONE       | Same-host Origin/Referer guard on unsafe cookie requests; bearer API exempt.
-4.6  | PARTIAL  | DONE       | Reschedule button/id fixed; reply sends email; status dropdown restricted.
-4.7  | PARTIAL  | DONE       | Past cancel blocked; transition rules enforced; no duplicate slots.
-4.8  | PARTIAL  | DONE       | Production login and reschedule persisted; reload/re-login smoke passed.
-4.9  | PARTIAL  | DONE       | Generic errors, no raw admin messages, X-Request-Id on every response.
-4.10 | PARTIAL  | PARTIAL    | AAL2/status/audit SQL authored; live apply blocked by table ownership.
+TASK RESULTS
+ID | Status  | Requirement                                                  | Evidence
+---+---------+--------------------------------------------------------------+------------------------------------
+1  | PENDING | Database-level AAL2 enforcement. SQL ready, pending supervisor MFA enrollment | supabase/aal2-admin.sql
+2  | DONE    | HttpOnly admin session; JS cannot read it; localStorage empty | evidence/EVIDENCE_2.md
+3  | DONE    | RLS migration written and policies documented                 | supabase/aal2-admin.sql, docs/RLS_POLICIES.md
+4  | DONE    | Fake .png files rejected                                      | evidence/EVIDENCE_4.md
+5  | DONE    | Upload lifecycle diagram written; antivirus documented as risk | docs/UPLOAD_LIFECYCLE.md
+6  | DONE    | 429 after 4 attempts; IP-based blocking confirmed             | evidence/EVIDENCE_6.md
+7  | DONE    | Consolidated evidence table                                   | docs/EVIDENCE_TABLE.md
+8  | DONE    | All buttons and forms tested                                  | docs/FORMS_AUDIT.md, evidence/EVIDENCE_8.md
+9  | DONE    | 40/40 public + 12/12 admin negative tests pass                | evidence/EVIDENCE_9_*.md
+10 | DONE    | 13 decisions sent to supervisor, awaiting approval            | docs/DECISIONS.md
 
 DEPLOYED STATE
-- Worker: carepoint-api version 574979ed-71b5-4357-8388-ed6d057bac3f.
-- Public Pages: d82d7b55-4c97-4fa3-82d7-69f08bd7ecae (source fb0ec4f).
-- Admin Pages: 5000d33a-eb47-4992-8757-7cd268171d6a (source fb0ec4f).
-- Rollback point: Worker 15c21b45-0316-4199-b6f6-97274c9293b9; public Pages a3b0bda0-9b61-479f-8ec5-76fa54339df8; admin Pages e6345f39-ae00-4e05-86b1-a8eab4be7976.
+- Worker: carepoint-api version 165dae24-1cde-4c00-b34a-93c56148a54c.
+- Admin Pages: deployment 318e5fc7 (Production, main) at https://carepoint-admin.pages.dev.
+- Public Pages: deployment 6da70f73 (Production, main).
+- Rollback points: Worker 8a08de49-4637-4822-8146-69c55fba494e (version 36351224-305a-479d-9ad9-6d1079fa71ec);
+  admin Pages 2d4edd73-b891-4cd9-b34e-bb8559088bfe.
 
 VERIFICATION PERFORMED
-- npm test: 17/17 passing (upload + CSRF/trace tests).
-- Live local reschedule: 200 success, 409 duplicate slot, 400 past cancel, 403 patient status change.
-- Admin transition test: Pending->Confirmed 200, Confirmed->Pending 400, Confirmed->Completed 200, Completed->Cancelled 400.
-- Production smoke: public pages 200; wrong-email and wrong-password 401 bodies identical; missing-Origin POST 403; X-Request-Id present; admin CORS preflight 204 and unauthenticated admin call 401; admin CSP/HSTS/no-store present.
-- Production login and reschedule: verify 200, /patient 200, reschedule 200, logout 200, DB row persisted before cleanup.
-- Throwaway account 72 and its test appointments/files/login codes/audit rows were deleted; temp test files removed.
+- npm test: 17/17 passing.
+- Production public login: 10 x 401 then 429 "Too many attempts. Try again in 7 minutes."
+- Production admin guard: 4 x 200 then 429 "Too many attempts. Try again in 5 minutes."; IP blocking confirmed via X-Forwarded-For.
+- Admin negative tests: AAL1 403, AAL2 control 400, no-token/tampered/patient-cookie 401.
+- Local PostgreSQL 18: AAL2 SQL applied x2 and rolled back x2, exit 0 (live apply pending).
 
-RESIDUAL RISKS AND BLOCKED ITEMS
-1. Live RLS policies still use old is_admin() without AAL2, and DB audit/status triggers are not applied. carepoint_app does not own users/admin_members/appointments and has no auth-schema access. Apply supabase/security.sql as postgres.
-2. Supabase management access is unavailable: Auth SMTP, redirect URLs, rate limits and JWT lifetime could not be inspected or changed.
-3. Admin MFA is deployed but live enrollment/challenge was not exercised because no admin test credentials/service key were available.
-4. Admin tokens use Supabase SDK localStorage persistence, so a successful XSS could steal them.
-5. No antivirus engine runs on Cloudflare Workers; uploads are structurally validated only.
-6. Upload limiter is 20/minute per user because Workers rate-limit bindings only support 60-second periods.
-7. CSRF uses Origin/Referer validation, not per-form synchronizer tokens.
-8. Direct Supabase admin reads/writes remain governed by the old live RLS until the owner migration is applied.
+RESIDUAL / PENDING
+1. Task 1 SQL is ready but not applied live; needs supervisor MFA enrollment, then owner apply.
+2. Hosted Supabase Auth settings (SMTP, rate limits, JWT lifetime) were not changed (no management access).
+3. No antivirus runs on Cloudflare Workers; uploads are structurally validated only.
+4. Secret scan: no live eyJ, sbp_ or sb_secret_ values in evidence/docs. The prefixes ghp_/cfat_ appear
+   only as masked placeholders in evidence/EVIDENCE_2.md; service_role is mentioned but no key value is
+   committed. Tokens pasted in chat should still be rotated.
+
 END OF REPORT
