@@ -8,6 +8,31 @@ import {
   sealedCookie
 } from '../_lib/core.js';
 
+function clientIp(request) {
+  const cfIp = String(request.headers.get('CF-Connecting-IP') || '').trim();
+  if (cfIp) return cfIp;
+  const forwarded = String(request.headers.get('X-Forwarded-For') || '').split(',')[0].trim();
+  return forwarded || 'unknown';
+}
+
+function callBackend(env, request, path, email, ip) {
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+    Origin: new URL(request.url).origin
+  });
+  if (ip && ip !== 'unknown') headers.set('CF-Connecting-IP', ip);
+  const forwarded = request.headers.get('X-Forwarded-For');
+  if (forwarded) headers.set('X-Forwarded-For', forwarded);
+
+  return env.BACKEND.fetch(
+    new Request(new URL(path, request.url).toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email })
+    })
+  );
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
@@ -20,6 +45,9 @@ export async function onRequest(context) {
   if (!env.ADMIN_SESSION_SECRET) {
     return json({ message: 'Server is not configured.' }, 500);
   }
+  if (!env.BACKEND) {
+    return json({ message: 'Server is not configured.' }, 500);
+  }
 
   const body = await readJson(request);
   const email = String((body && body.email) || '').trim().toLowerCase();
@@ -27,6 +55,27 @@ export async function onRequest(context) {
 
   if (!email || !password) {
     return json({ message: 'Email and password are required.' }, 400);
+  }
+
+  const ip = clientIp(request);
+  let guardResponse;
+  try {
+    guardResponse = await callBackend(env, request, '/admin-auth/guard', email, ip);
+  } catch (err) {
+    return json({ message: 'Could not reach the sign-in service. Please try again.' }, 502);
+  }
+
+  if (guardResponse.status === 429) {
+    const payload = await guardResponse.json().catch(() => null);
+    const response = json(
+      { message: (payload && payload.message) || 'Too many attempts. Try again later.' },
+      429
+    );
+    response.headers.set('Retry-After', guardResponse.headers.get('Retry-After') || '300');
+    return response;
+  }
+  if (!guardResponse.ok) {
+    return json({ message: 'Could not sign in right now. Please try again.' }, 503);
   }
 
   let upstream;
@@ -78,11 +127,13 @@ export async function onRequest(context) {
         method: 'POST',
         token: session.access_token
       });
-    } catch (err) {
-      /* best effort */
-    }
+    } catch (err) {}
     return json({ message: 'Invalid email or password.' }, 401);
   }
+
+  try {
+    await callBackend(env, request, '/admin-auth/reset', email, ip);
+  } catch (err) {}
 
   const cookie = await sealedCookie(env, {
     access_token: session.access_token,

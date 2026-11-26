@@ -78,4 +78,40 @@ router.post('/login', async (req, res) => {
   });
 });
 
+router.post('/guard', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+
+  const email = limiter.normalizeEmail(req.body && req.body.email);
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+
+  try {
+    const keys = await limiter.guard('admin', req, email, res, LIMITS);
+    if (!keys) return;
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin login guard failed:', err.message);
+    return res.status(503).json({ message: 'Could not sign in right now. Please try again.' });
+  }
+});
+
+router.post('/reset', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+
+  const email = limiter.normalizeEmail(req.body && req.body.email);
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+
+  const keys = limiter.keysFor(req, email);
+  try {
+    await limiter.resetAttempts('admin', keys.emailKey, keys.ipKey);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin login guard reset failed:', err.message);
+    return res.status(503).json({ message: 'Could not sign in right now. Please try again.' });
+  }
+});
+
 module.exports = router;
